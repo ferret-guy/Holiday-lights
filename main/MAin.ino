@@ -32,6 +32,13 @@ int col_num = 0;
 //***********************
 
 //***********************
+//scroll speed
+int scroll_speed = 0;
+//0 is no scroll
+//1 - 4 are legal speeds
+//***********************
+
+//***********************
 //Number of leds
 int led_num = 300;
 //***********************
@@ -80,10 +87,30 @@ void loop() {
   //theaterChase(strip.Color(127,   0,   0), 50); // Red
   //theaterChase(strip.Color(  0,   0, 127), 50); // Blue
 }
-//colorc count
-void normal () {
+//simple color scroll
+void scroll (  ) {}
+
+//base color section render
+void render (int offset) {
+  //*********************
+  // temp
+  uint32_t red = strip.Color(255, 0, 0);
+  uint32_t blue = strip.Color(0, 255, 0);
+  uint32_t green = strip.Color(0, 0, 255);
+  uint32_t white = strip.Color(255, 255, 255);
+  uint32_t orange = strip.Color(255, 165, 0);
+  uint32_t yellow = strip.Color(255, 0, 255);
+  uint32_t color = strip.Color(255, 0, 255);
+  uint32_t color2 = strip.Color(255, 0, 255);
+  uint32_t color3 = strip.Color(255, 0, 255);
+  uint32_t color4 = strip.Color(255, 0, 255);
+  uint32_t color5 = strip.Color(255, 0, 255);
+  uint32_t off = strip.Color(0, 0, 0);  
+    //************************
+  
   int col_len = 1;
   int col_step = 0;
+  int remainder = 0;
   int num = 0;
   colorcount();
   if (col_num = 0) {
@@ -94,7 +121,9 @@ void normal () {
     else
   {
     //get the number of pixels in color
-     col_len = floor(led_num/col_num)
+     col_len = floor(led_num/col_num);
+     //apply offset
+     col_step = col_step + offset;
     //*****************************************************
     //write colors
     //*****************************************************
@@ -103,137 +132,171 @@ void normal () {
     case 1:
       num = 0;
       while (num < col_len)
+      if (col_step > led_num ) {col_step = col_step - led_num;}
       strip.setPixelColor(col_step, red);
       col_step++;
       num++;
       break;
     default: 
      break;
+     }
     //*****************************************************     
     //blue
       switch (blue = 1) {
     case 1:
       num = 0;
       while (num < col_len)
+      if (col_step > led_num ) {col_step = col_step - led_num;}
       strip.setPixelColor(col_step, blue);
       col_step++;
       num++;
       break;
     default: 
      break;
+     }
     //*****************************************************     
     //green
       switch (green = 1) {
     case 1:
       num = 0;
       while (num < col_len)
+      if (col_step > led_num ) {col_step = col_step - led_num;}
       strip.setPixelColor(col_step, green);
       col_step++;
       num++;
       break;
     default: 
      break;
+     }
     //*****************************************************     
     //white
       switch (white = 1) {
     case 1:
       num = 0;
       while (num < col_len)
+      if (col_step > led_num ) {col_step = col_step - led_num;}
       strip.setPixelColor(col_step, white);
       col_step++;
       num++;
       break;
     default: 
      break;
+     }
     //*****************************************************     
     //orange
       switch (orange = 1) {
     case 1:
       num = 0;
       while (num < col_len)
+      if (col_step > led_num ) {col_step = col_step - led_num;}
       strip.setPixelColor(col_step, orange);
       col_step++;
       num++;
       break;
     default: 
      break;
+     }
     //*****************************************************     
     //yellow
       switch (yellow = 1) {
     case 1:
       num = 0;
       while (num < col_len)
+      if (col_step > led_num ) {col_step = col_step - led_num;}
       strip.setPixelColor(col_step, yellow);
       col_step++;
       num++;
       break;
     default: 
      break;
+     }
     //*****************************************************     
     //color
       switch (color = 1) {
     case 1:
       num = 0;
       while (num < col_len)
+      if (col_step > led_num ) {col_step = col_step - led_num;}
       strip.setPixelColor(col_step, color);
       col_step++;
       num++;
       break;
     default: 
      break;
+     }
     //*****************************************************     
     //color2
       switch (color2 = 1) {
     case 1:
       num = 0;
       while (num < col_len)
+      if (col_step > led_num ) {col_step = col_step - led_num;}
       strip.setPixelColor(col_step, color2);
       col_step++;
       num++;
       break;
     default: 
      break;
+     }
     //*****************************************************     
     //color3
       switch (color3 = 1) {
     case 1:
       num = 0;
       while (num < col_len)
+      if (col_step > led_num ) {col_step = col_step - led_num;}
       strip.setPixelColor(col_step, color3);
       col_step++;
       num++;
       break;
     default: 
      break;
+     }
     //*****************************************************     
     //color4
       switch (color4 = 1) {
     case 1:
       num = 0;
       while (num < col_len)
+      if (col_step > led_num ) {col_step = col_step - led_num;}
       strip.setPixelColor(col_step, color4);
       col_step++;
       num++;
       break;
     default: 
      break;
+     }
     //*****************************************************     
     //color5
       switch (color5 = 1) {
     case 1:
       num = 0;
       while (num < col_len)
+      if (col_step > led_num ) {col_step = col_step - led_num;}
       strip.setPixelColor(col_step, color5);
       col_step++;
       num++;
       break;
     default: 
      break;
+     }
+    //*****************************************************     
+    // fill rest with off
+      remainder = led_num - (col_len * col_num);
+      if ( remainder = 0) {}
+      else {
+      num = 0;
+     while (num < remainder)
+      if (col_step > led_num ) {col_step = col_step - led_num;}
+      strip.setPixelColor(col_step, off);
+      col_step++;
+      num++;
+     }
     //*****************************************************     
   }
   }
   
-}
+
 int colorcount() {
   col_num = 0;
   if (red = 0){ col_num++; } 
