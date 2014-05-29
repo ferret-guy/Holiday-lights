@@ -7,7 +7,7 @@
 
 // Change this to be at least as long as your pixel string (too long will work fine, just be a little slower)
 
-#define PIXELS 96*11  // Number of pixels in the string
+#define PIXELS 100  // Number of pixels in the string
 
 // These values depend on which pin your string is connected to and what board you are using 
 // More info on how to find these at http://www.arduino.cc/en/Reference/PortManipulation
@@ -15,9 +15,9 @@
 // These values are for digital pin 8 on an Arduino Yun or digital pin 12 on a DueMilinove
 // Note that you could also include the DigitalWriteFast header file to not need to to this lookup.
 
-#define PIXEL_PORT  PORTB  // Port of the pin the pixels are connected to
-#define PIXEL_DDR   DDRB   // Port of the pin the pixels are connected to
-#define PIXEL_BIT   4      // Bit of the pin the pixels are connected to
+#define PIXEL_PORT  PORTD  // Port of the pin the pixels are connected to
+#define PIXEL_DDR   DDRD   // Port of the pin the pixels are connected to
+#define PIXEL_BIT   7      // Bit of the pin the pixels are connected to
 
 // These are the timing constraints taken mostly from the WS2812 datasheet 
 
