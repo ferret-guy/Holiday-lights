@@ -1,4 +1,3 @@
-
 /*
  This is an example of how simple driving a Neopixel can be
  This code is optimized for understandability and changability rather than raw speed
@@ -15,9 +14,9 @@
 // These values are for digital pin 8 on an Arduino Yun or digital pin 12 on a DueMilinove
 // Note that you could also include the DigitalWriteFast header file to not need to to this lookup.
 
-#define PIXEL_PORT  PORTB  // Port of the pin the pixels are connected to
-#define PIXEL_DDR   DDRB   // Port of the pin the pixels are connected to
-#define PIXEL_BIT   4      // Bit of the pin the pixels are connected to
+#define PIXEL_PORT  PORTD  // Port of the pin the pixels are connected to
+#define PIXEL_DDR   DDRD   // Port of the pin the pixels are connected to
+#define PIXEL_BIT   7      // Bit of the pin the pixels are connected to
 
 // These are the timing constraints taken mostly from the WS2812 datasheet 
 
@@ -338,3 +337,4 @@ void loop() {
   return;
   
 }
+
