@@ -6,7 +6,7 @@
 
 // Change this to be at least as long as your pixel string (too long will work fine, just be a little slower)
 
-#define PIXELS 100  // Number of pixels in the string
+#define PIXELS 104  // Number of pixels in the string
 
 // These values depend on which pin your string is connected to and what board you are using 
 // More info on how to find these at http://www.arduino.cc/en/Reference/PortManipulation
@@ -312,17 +312,19 @@ void detonate( unsigned char r , unsigned char g , unsigned char b , unsigned in
     
 }
 
-void colorseprate( unsigned char r , unsigned char g , unsigned char b ) {
+/*
+void colorseprate() {
   
   cli();  
   for( int p=0; p<PIXELS; p++ ) {
+   
     sendPixel( r , g , b );
   }
   sei();
   show();
   
 }
-
+*/
 void setup() {
     
   ledsetup();
@@ -333,24 +335,25 @@ void setup() {
 void loop() {
   
   // Some example procedures showing how to display to the pixels:
-/*  colorWipe(255, 0, 0, 0); // Red
+  colorWipe(255, 255, 0, 0); // Red
   delay(500);
-  colorWipe(0, 255, 0, 0); // Green
+  colorWipe(255,   102,   255, 0); // Green
   delay(500);
   colorWipe(0, 0, 255, 0); // Blue
   delay(500);
-  */
+  
 /*
   // Send a theater pixel chase in...
   theaterChase(0, 127, 0, 5); // White
   delay(500);
-  theaterChase(127,   0,   0, 5); // Red
+  theaterChase(255,   102,   255, 5); // Red
   delay(500);
   theaterChase(  0,   0, 127, 5); // Blue
   delay(500);
- */ 
-//  rainbowCycle(1000 , 20 , 5 );
+  */
+//  rainbowCycle(5000 , 500 , 20 );
 //  detonate( 255 , 255 , 255 , 1000);
+//colorseprate();
   
   return;
   
