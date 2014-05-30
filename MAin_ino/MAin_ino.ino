@@ -3,7 +3,7 @@
 #define PIN 7
 
 //***********************
-int sepratemode = 0;
+int sepratemode = 1;
 //1 is 1 instance of every color
 //2 is 2 instance of every color
 //3 is 3 instance of every color
@@ -34,7 +34,7 @@ int led_num = 100;
 //   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(60, PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(104, PIN, NEO_GRB + NEO_KHZ800);
 
 // IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
 // pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
@@ -42,25 +42,24 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(60, PIN, NEO_GRB + NEO_KHZ800);
 // on a live circuit...if you must, connect GND first.
 
 //color enable
-boolean color_enable[] = {1,1,1,0,0,0,0,0,0,0,0,0};
+boolean color_enable[] = {1,1,1,1,1,1,1,1,1,1,1};
 //****************
 
 /* color order
     red
-    blue
     green
+    blue
     white
     orange
     yellow
-    color
-    color1
-    color2
-    color3
-    color4
-    color5 */
+    purple
+    warm white
+    amber
+    turquoise
+    magenta */
 
 // color vaues
-uint32_t colors[] = {strip.Color(255, 0, 0),strip.Color(0, 255, 0), strip.Color(0, 0, 255),strip.Color(255, 255, 255),strip.Color(255, 165, 0),strip.Color(255, 0, 255), strip.Color(255, 0, 255),strip.Color(255, 0, 255),strip.Color(255, 0, 255),strip.Color(255, 0, 255),strip.Color(255, 0, 255)};
+uint32_t colors[] = {strip.Color(255,0,0),strip.Color(0,0,255),strip.Color(0,255,0),strip.Color(255,255,255),strip.Color(255,165,0),strip.Color(255,255,0),strip.Color(128,0,128),strip.Color(255,178,48),strip.Color(255,245,230),strip.Color(175,238,238),strip.Color(255,0,255)};
 //****************
 
 
@@ -69,14 +68,14 @@ void setup() {
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
   //declare colors
-  Serial.begin(9600);
-  Serial.println("Ready to decode IR!");
+//  Serial.begin(9600);
+//  Serial.println("Ready to decode IR!");
 }
 
 void loop() {
   //example color sepration
   // Some example procedures showing how to display to the pixels:
-  Serial.println("color Wipe 1 \n");
+  /*(Serial.println("color Wipe 1 \n");
   colorWipe(strip.Color(255, 0, 0), 50); // Red
   Serial.println("color Wipe 2 \n");  
   colorWipe(strip.Color(0, 255, 0), 50); // Green
@@ -92,8 +91,12 @@ void loop() {
   Serial.println("Theater chase 3 \n");
   theaterChase(strip.Color(  0,   0, 127), 50); // Blue
   Serial.println("Rander!!!!!! \n");
-  render(0);
-  delay(1000);  
+  */
+  colorcount();
+  int index_step =0;
+  while(index_step < col_num){
+  render(index_step);
+  index_step++;}
 }
 
 //********************************
@@ -189,11 +192,10 @@ uint32_t Wheel(byte WheelPos) {
 void color_set(uint32_t c, uint8_t wait, int start, int num) {
   for(int i=0; i<num; i++) {
       strip.setPixelColor((start+i), c);
-        Serial.println("pixel num");
-        Serial.println(start+i);
-        Serial.println("\n");
+ //       Serial.println("pixel num");
+   //     Serial.println(start+i);
+     //   Serial.println("\n");
       strip.show();
-      delay(wait);
   }
 }
 //*************************************
@@ -223,55 +225,39 @@ void colorcount() {
 
 //base color section render
 void render (int offset) {
-  colorcount();
-  Serial.println("seprat mode");
-  Serial.println(sepratemode);
   int col_step = 0;
   int col_len = 0;
   int remainder = 0;
   int index = 0;
   index=index+offset;
+
         switch(sepratemode){
           case 1:
               col_len = ((strip.numPixels())/col_num);
               remainder = strip.numPixels()-(col_len*col_num);
-                Serial.println("seprate case 1");
               break;
           case 2:
               col_len = floor(col_num/(strip.numPixels()/2));
               remainder = floor(strip.numPixels()/2)-(col_len*col_num);
-                Serial.println("seprate case 2");
               break;
           case 3:
               col_len = floor(col_num/(strip.numPixels()/3));
               remainder = floor(strip.numPixels()/3)-(col_len*col_num);
-                Serial.println("seprate case 3");
               break;
            case 0:
               break;
         }
-     Serial.println("col_len");
-     Serial.println(col_len);
-     Serial.println("remainder");
-     Serial.println(remainder);
 
     while(col_step < 12 && col_num != 0 && sepratemode != 0){
-        Serial.println("seprate while loop!");
-        Serial.println(col_step);
         if (color_enable[col_step] == true){
-            color_set(colors[col_step],5,index,col_len);
-            Serial.println("color:");
-            Serial.println(colors[col_step]);
-            Serial.println("col_len");
-            Serial.println(col_len);
-            Serial.println("col_step:");
-            Serial.println(col_step);
+                      int start = index;
+                        for(int i=0; i<col_len; i++) {
+                    strip.setPixelColor((start+i), colors[col_step]);
+                    strip.show();}
             index = index + col_len;
             }
           col_step++;
         }
-Serial.println("sepratemode");
-Serial.println(sepratemode);
 
 
 
@@ -284,31 +270,34 @@ Serial.println(sepratemode);
                    if(color_enable[col_step] == 1){
                       seprate_color[array_step]= colors[col_step];
                       array_step++;
-                      Serial.println("color:");
-                      Serial.println(colors[col_step]);
-                      Serial.println("array step");
-                      Serial.println(array_step);
+                  //    Serial.println("color:");
+                  //    Serial.println(colors[col_step]);
+                  //    Serial.println("array step");
+                  //    Serial.println(array_step);
                        }
                        col_step++;
                    }
                  //End colors in array
                  Serial.println("end array");
                 while(index < strip.numPixels()){
-                 Serial.println("index");
-                 Serial.println(index);
-                 Serial.println("\n");
+               //  Serial.println("index");
+               //  Serial.println(index);
+              //   Serial.println("\n");
                   array_step = 0;
                   while(array_step < col_num){
                       strip.setPixelColor(index,seprate_color[array_step]);
                       index=index+1;
                       array_step=array_step+1;
+                  /*
                       Serial.println("array_step");
                        Serial.println(array_step);
                       Serial.println("color");
                        Serial.println(seprate_color[array_step]);
+                       */
                   }
                 }
               }
+              strip.show();
       }
       
   
