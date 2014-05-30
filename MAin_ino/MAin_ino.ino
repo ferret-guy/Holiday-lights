@@ -92,11 +92,13 @@ void loop() {
   theaterChase(strip.Color(  0,   0, 127), 50); // Blue
   Serial.println("Rander!!!!!! \n");
   */
+ 
   colorcount();
   int index_step =0;
-  while(index_step < col_num){
-  render(index_step);
-  index_step++;}
+  while(index_step < 255){
+  strip.setBrightness(index_step);
+  colorWipe(strip.Color(255, 255, 255), 0);
+  index_step=index_step+10;}
 }
 
 //********************************
@@ -195,7 +197,6 @@ void color_set(uint32_t c, uint8_t wait, int start, int num) {
  //       Serial.println("pixel num");
    //     Serial.println(start+i);
      //   Serial.println("\n");
-      strip.show();
   }
 }
 //*************************************
