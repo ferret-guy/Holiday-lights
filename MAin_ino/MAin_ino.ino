@@ -13,6 +13,10 @@ int sepratemode = 1;
 //***********************
 //Number of colors
 int col_num = 0;
+int col_len = 0;
+int col_steps = 0;
+int remainder = 0;
+int d = 0;
 //***********************
 
 //***********************
@@ -24,7 +28,8 @@ int scroll_speed = 0;
 
 //***********************
 //Number of leds
-int led_num = 100;
+int led_num = 104;
+int led_chunks = 0;
 //***********************
 
 // Parameter 1 = number of pixels in strip
@@ -34,7 +39,7 @@ int led_num = 100;
 //   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(104, PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(led_num, PIN, NEO_GRB + NEO_KHZ800);
 
 // IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
 // pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
@@ -68,8 +73,14 @@ void setup() {
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
   //declare colors
-//  Serial.begin(9600);
-//  Serial.println("Ready to decode IR!");
+  //Serial.begin(9600);
+  //Serial.println("Ready to run!");
+  colorcount();
+  calcCL();
+  col_steps = (col_num*col_len);//sepratemode;
+  led_chunks = led_num/sepratemode;
+  //Serial.print("col_pix=");
+  //Serial.println(col_pix,DEC);
 }
 
 void loop() {
@@ -93,12 +104,15 @@ void loop() {
   Serial.println("Rander!!!!!! \n");
   */
  
-  colorcount();
+  //Serial.println("Loop runs");
+  //Serial.println(col_pix,DEC);
   int index_step =0;
-  while(index_step < 255){
-  strip.setBrightness(index_step);
-  colorWipe(strip.Color(255, 255, 255), 0);
-  index_step=index_step+10;}
+  while(index_step < col_steps){
+  //Serial.print("Miniloop at ");
+  //Serial.println(index_step,DEC);
+  render(index_step);
+  delay(150);
+  index_step++;}
 }
 
 //********************************
@@ -217,49 +231,64 @@ void colorcount() {
   if (color_enable[9] == true) { col_num=col_num+1; } 
   if (color_enable[10] == true){ col_num=col_num+1; } 
   if (color_enable[11] == true){ col_num=col_num+1; } 
-  Serial.println("col_num:");
-  Serial.println(col_num);
-  Serial.println("\n");
+  //Serial.println("col_num:");
+  //Serial.println(col_num);
+  //Serial.println("\n");
 }
 
-
+void calcCL(){
+  //Serial.println(sepratemode,DEC);
+        /*switch(sepratemode){
+          case 1:
+              col_len = ((strip.numPixels())/col_num);
+              //remainder = strip.numPixels()-(col_len*col_num);
+              break;
+          case 2:
+              col_len = floor(col_num/(strip.numPixels()/2));
+              //remainder = floor(strip.numPixels()/2)-(col_len*col_num);
+              break;
+          case 3:
+              col_len = floor(col_num/(strip.numPixels()/3));
+              //remainder = floor(strip.numPixels()/3)-(col_len*col_num);
+              break;
+           case 0:
+              break;
+        }*/
+        if(sepratemode > 0){
+          col_len = floor((strip.numPixels()/sepratemode)/col_num);
+        }
+        //Serial.println(col_len,DEC);
+}
 
 //base color section render
 void render (int offset) {
   int col_step = 0;
-  int col_len = 0;
-  int remainder = 0;
-  int index = 0;
-  index=index+offset;
-
-        switch(sepratemode){
-          case 1:
-              col_len = ((strip.numPixels())/col_num);
-              remainder = strip.numPixels()-(col_len*col_num);
-              break;
-          case 2:
-              col_len = floor(col_num/(strip.numPixels()/2));
-              remainder = floor(strip.numPixels()/2)-(col_len*col_num);
-              break;
-          case 3:
-              col_len = floor(col_num/(strip.numPixels()/3));
-              remainder = floor(strip.numPixels()/3)-(col_len*col_num);
-              break;
-           case 0:
-              break;
-        }
-
-    while(col_step < 12 && col_num != 0 && sepratemode != 0){
+  //int index = 0;
+  //index+=offset;
+    if(sepratemode != 0 && col_num !=0){
+      //for(int i=0; i<=sepratemode; i++){
+      //  d=i*led_chunks;
+      while(col_step < 12){
         if (color_enable[col_step] == true){
-                      int start = index;
+             /*         int start = offset;
                         for(int i=0; i<col_len; i++) {
-                    strip.setPixelColor((start+i), colors[col_step]);
-                    strip.show();}
-            index = index + col_len;
+                          int pixnum=start+i;
+                          while(pixnum>=led_num){
+                            pixnum-=led_num;
+                          }
+                          strip.setPixelColor((pixnum), colors[col_step]);
+                    /*strip.show();*/}
+            int pixnum=(col_step*col_len)+offset;
+            while(pixnum>=led_chunks){
+              pixnum-=led_chunks;
+            }
+            strip.setPixelColor(pixnum+d,colors[col_step]);
+            offset+=col_len;
             }
           col_step++;
-        }
-
+        }//}
+        strip.show();
+    }
 
 
       if(sepratemode == 0){
@@ -279,16 +308,16 @@ void render (int offset) {
                        col_step++;
                    }
                  //End colors in array
-                 Serial.println("end array");
-                while(index < strip.numPixels()){
+                 //Serial.println("end array");
+                while(offset < strip.numPixels()){
                //  Serial.println("index");
                //  Serial.println(index);
               //   Serial.println("\n");
                   array_step = 0;
                   while(array_step < col_num){
-                      strip.setPixelColor(index,seprate_color[array_step]);
-                      index=index+1;
-                      array_step=array_step+1;
+                      strip.setPixelColor(offset,seprate_color[array_step]);
+                      offset++;
+                      array_step++;
                   /*
                       Serial.println("array_step");
                        Serial.println(array_step);
