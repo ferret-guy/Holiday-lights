@@ -47,7 +47,7 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(led_num, PIN, NEO_GRB + NEO_KHZ800);
 // on a live circuit...if you must, connect GND first.
 
 //color enable
-boolean color_enable[] = {1,1,1,1,1,1,1,1,1,1,1};
+boolean color_enable[] = {1,0,0,0,1,1,0,0,0,0,0};
 //****************
 
 /* color order
@@ -64,7 +64,7 @@ boolean color_enable[] = {1,1,1,1,1,1,1,1,1,1,1};
     magenta */
 
 // color vaues
-uint32_t colors[] = {strip.Color(255,0,0),strip.Color(0,0,255),strip.Color(0,255,0),strip.Color(255,255,255),strip.Color(255,165,0),strip.Color(255,255,0),strip.Color(128,0,128),strip.Color(255,178,48),strip.Color(255,245,230),strip.Color(175,238,238),strip.Color(255,0,255)};
+uint32_t colors[] = {strip.Color(255,0,0),strip.Color(0,0,255),strip.Color(0,255,0),strip.Color(255,255,255),strip.Color(255,75,0),strip.Color(255,175,25),strip.Color(128,0,128),strip.Color(255,178,48),strip.Color(255,245,230),strip.Color(175,238,238),strip.Color(255,0,255)};
 //****************
 
 
@@ -111,7 +111,7 @@ void loop() {
   //Serial.print("Miniloop at ");
   //Serial.println(index_step,DEC);
   render(index_step);
-  delay(150);
+  delay(15);
   index_step++;}
 }
 
@@ -277,7 +277,7 @@ void render (int offset) {
                             pixnum-=led_num;
                           }
                           strip.setPixelColor((pixnum), colors[col_step]);
-                    /*strip.show();*/}
+                    /*strip.show();*///}
             int pixnum=(col_step*col_len)+offset;
             while(pixnum>=led_chunks){
               pixnum-=led_chunks;
@@ -290,8 +290,8 @@ void render (int offset) {
         strip.show();
     }
 
-
-      if(sepratemode == 0){
+}
+      /*if(sepratemode == 0){
               //put colors in array
               col_step = 0;
               int array_step = 0;
@@ -323,12 +323,12 @@ void render (int offset) {
                        Serial.println(array_step);
                       Serial.println("color");
                        Serial.println(seprate_color[array_step]);
-                       */
+                       *//*
                   }
                 }
               }
               strip.show();
-      }
+      }*/
       
   
   

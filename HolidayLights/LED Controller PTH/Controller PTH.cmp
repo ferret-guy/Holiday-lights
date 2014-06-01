@@ -1,0 +1,101 @@
+Cmp-Mod V01 Created by CvPcb (2013-07-07 BZR 4022)-stable date = 5/29/2014 5:33:15 PM
+
+BeginCmp
+TimeStamp = /53875919;
+Reference = C1;
+ValeurCmp = 0.1uF;
+IdModule  = C2;
+EndCmp
+
+BeginCmp
+TimeStamp = /53875854;
+Reference = C2;
+ValeurCmp = 0.1uF;
+IdModule  = C2;
+EndCmp
+
+BeginCmp
+TimeStamp = /5387849C;
+Reference = C3;
+ValeurCmp = 0.33uF;
+IdModule  = C1V5;
+EndCmp
+
+BeginCmp
+TimeStamp = /538784AB;
+Reference = C4;
+ValeurCmp = 1uF;
+IdModule  = C1V8;
+EndCmp
+
+BeginCmp
+TimeStamp = /53879856;
+Reference = C5;
+ValeurCmp = 0.1uF;
+IdModule  = C2;
+EndCmp
+
+BeginCmp
+TimeStamp = /53879919;
+Reference = C6;
+ValeurCmp = 0.1uF;
+IdModule  = C2;
+EndCmp
+
+BeginCmp
+TimeStamp = /53875122;
+Reference = IC1;
+ValeurCmp = ATMEGA328-P;
+IdModule  = DIP-28__300_ELL;
+EndCmp
+
+BeginCmp
+TimeStamp = /53875169;
+Reference = K1;
+ValeurCmp = CONN_3;
+IdModule  = SIL-3;
+EndCmp
+
+BeginCmp
+TimeStamp = /538785A9;
+Reference = P1;
+ValeurCmp = CONN_6;
+IdModule  = SIL-6;
+EndCmp
+
+BeginCmp
+TimeStamp = /538757A6;
+Reference = Q1;
+ValeurCmp = TSOP38238;
+IdModule  = TO220;
+EndCmp
+
+BeginCmp
+TimeStamp = /5387776F;
+Reference = Q2;
+ValeurCmp = ZTT-16.00MX;
+IdModule  = TO220;
+EndCmp
+
+BeginCmp
+TimeStamp = /53879813;
+Reference = R1;
+ValeurCmp = 10K;
+IdModule  = R3-5;
+EndCmp
+
+BeginCmp
+TimeStamp = /5387D252;
+Reference = R2;
+ValeurCmp = 300;
+IdModule  = R3-5;
+EndCmp
+
+BeginCmp
+TimeStamp = /5387842B;
+Reference = U1;
+ValeurCmp = LM7905CT;
+IdModule  = TO220;
+EndCmp
+
+EndListe
