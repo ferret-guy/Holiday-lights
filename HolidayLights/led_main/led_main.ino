@@ -8,13 +8,17 @@
 int       led_num         = 99;    //Total number of LEDs, zero-ordinated. Due to a less than healthy mix of zero- and one-ordination, the best solution is to confuse the other algorithms with an odd number.
 int       col_tot         = 11;    //Total colors defined. This will almost certainly be 11, but there's nothing wrong with a little open-endedness.
 int       col_len         = 0;     //The length of each color segment. This is calculated later.
+float     col_fln         = 0;     //The floating-point color length.
+int       col_seg         = 0;     //The length of each separation mode segment.
 int       col_num         = 0;     //The number of active/enabled colors. This is calculated later.
+int       col_rep         = 0;     //The number of times to draw the colors in color separation mode 2+.
 uint32_t  col_lst;                 //The last preset color passed by per-pixel mode. Dirty RAM-saving hack. [NN]
 int       ren_stp         = 0;     //The number of iterations the rendering loop goes through before resetting. This is calculated later.
 int       ren_lst         = -1;    //The last pixel passed by per-pixel mode. [NN]
 boolean   ren_msk[256];            //The preset pixel map for per-pixel mode. Absorbs all your RAM. [NN]
 int       ren_glx         = 0;     //Useful for resuming color separation mode as opposed to restarting the animation. Not really necessary.
 int       sep_mod         = 1;     //The current separation mode.
+int       sep_prv         = 1;     //The previous separation mode.
 int       sep_dly         = 100;   //The current animation frame delay.
 int       absolute_offset = 4;     //The number of pixels to skip when drawing. Only purpose is to skip the four NeoPixels indev. [NN]
 
@@ -49,7 +53,7 @@ uint32_t colors[] = {
   strip.Color(128,0,128),    //Purple
   strip.Color(255,178,48),   //Warm White
   strip.Color(175,238,238),  //Turquoise
-  strip.Color(255,0,255),    //Magenta
+  strip.Color(255,0,128),    //Magenta
   strip.Color(255,200,25)    //Amber
 };
 
@@ -61,10 +65,16 @@ int CalcCL(int spm){
   if(spm>0){
     //The color length is calculated. It might be wise to ditch this whole block of code and replace it with floating-point math.
     //Really, it can't even handle even-number separation mode. It needs major TLC.
-    ccl = floor(((led_num/spm)/col_num));
+    ccl = ceil(((led_num/spm)/col_num));
+    if(ccl<1){ccl=1;}
+    //Calculate the floating-point color length.
+    col_fln = (led_num/spm)/col_num;
+    col_seg = (int) (ccl*col_num);
+    col_rep = led_num/col_seg;
     //Serial.print("CCL: ");
     //Serial.println(ccl,DEC);
     //Total up the moduli (remainders) of the integer division.
+    /*
     int mcl = led_num % spm;
     mcl += (led_num/spm) % col_num;
     //mcl += ((led_num/spm)/col_num) % 2;
@@ -80,18 +90,22 @@ int CalcCL(int spm){
     int mcp = 0;
     int mci = 0;
     for(int i=0;i<col_tot;i++){
-      //If the offset-accumulator has reached the color-offset-step, set it to zero and increment the current offset.
-      if(mcp>=mcs){
-        mcp=0;
-        mci++;
+      //If the color is enabled, give it an offset
+      if(color_enable[i]){
+        //If the offset-accumulator has reached the color-offset-step, set it to zero and increment the current offset.
+        if(mcp>=mcs){
+          mcp=0;
+          mci++;
+        }
+        //This just makes it work better. It's an isolated case but still an existing case.
+        if(col_num==11&&sep_mod==1){color_offset[i]=mci;}//Removed.
+        //Set the offset.
+        else{color_offset[i]=mci;}
+        //Increment the offset-accumulator.
+        mcp++;
       }
-      //This just makes it work better. It's an isolated case but still an existing case.
-      if(col_num==11&&sep_mod==1){color_offset[i]=mci*4;}
-      //Set the offset.
-      else{color_offset[i]=mci;}
-      //Increment the offset-accumulator.
-      mcp++;
     }
+    */
   }
   return ccl;
 }
@@ -106,14 +120,14 @@ int CalcCN(boolean cle[]){
   return cur;
 }
 
-//Initialize out strips(s). This is where strip redefinition would need to happen.
+//Initialize our strips(s). This is where strip redefinition would need to happen.
 void initStrips(boolean cle[],int spm){
   //Update our globals.
   col_num = CalcCN(cle);
   col_len = CalcCL(spm);
   //Set the number of render steps. For whatever reason (I blame the offsetter) this isn't accurate.
   if(spm>0){
-    ren_stp = led_num/spm;
+    ren_stp = col_seg;
   }else{
     ren_stp = led_num;
   }
@@ -134,18 +148,20 @@ void initStrips(boolean cle[],int spm){
 //The separation mode renderer! Fun!
 void RenderSPM(int offset){
   //Initialize the incrementing variables.
+  int rend_step = 1; //NOT TO BE CONFUSED WITH ren_stp. Honestly, I shouldn't have named it this, but I did.
   int col_step = 0;
-  int spm_step = 0;
+  int spm_step = -1;
   //If separation mode is 1 or higher...
   if(sep_mod>0){
     //This while loop increments spm_step to draw multiple instances of the separation for modes 2 and up.
-    while(spm_step<sep_mod){
+    while(spm_step<=col_rep){
       //Serial.println("sep_mod:");
       //Serial.println(sep_mod,DEC);
       //Serial.println("spm_step:");
       //Serial.println(spm_step,DEC);
       //Really, this needs to get reset. Spent hours trying to figure this out.
       col_step=0;
+      rend_step=0;
       //This while loop steps through the different colors.
       while(col_step<col_tot){
         //If the color is enabled, render it.
@@ -166,12 +182,16 @@ void RenderSPM(int offset){
           //Serial.println("current color_offset:");
           //Serial.println(color_offset[col_step],DEC);
           //Calculate what pixel we should be drawing to.                \/ This is where we move over a lot for separatio mode 2+.
-          int pixnum=(col_step*(col_len))+offset+color_offset[col_step]+(col_len*11*spm_step);
+          int pixnum=(rend_step*(col_len))+offset+0*color_offset[col_step]+(col_seg*spm_step);
           //Serial.println("pre pixnum:");
           //Serial.println(pixnum,DEC);
           //Roll over from the end of the strip. This could be changed to a if, but other code needs checking first.
-          while(pixnum>=led_num){
-            pixnum-=led_num;
+          //while(pixnum>=led_num){
+          //  pixnum-=led_num;
+          //}
+          //Don't draw to pixels lower than the absolute offset.
+          if(pixnum<0){
+            pixnum=-absolute_offset-1;
           }
           //Serial.println("post pixnum:");
           //Serial.println(pixnum,DEC);
@@ -182,6 +202,8 @@ void RenderSPM(int offset){
           //HOURS.
           //Serial.println("post offset:");
           //Serial.println("who cares, this is what broke it");
+          //Go to the next color length.
+          rend_step++;
         }
         //Go to the next color.
         col_step++;
@@ -305,6 +327,24 @@ void loop(void) {
       //Clear the pixel. Doesn't make a difference, because the LED Control Utility continues sending the preview command at the selected color. But why not, this would be very useful in the bluetooth control scenario.
       strip.setPixelColor(ln+absolute_offset,strip.Color(0,0,0));
     }
+    //Color update mode. This allows for predefined colors to be updated, so that separation mode can be previewed with different colors, without reuploading. [NN]
+    if(csig==50){
+      //Get our relevant data.
+      byte cr,cg,cb,cn;
+      cr = Serial.read();
+      cg = Serial.read();
+      cb = Serial.read();
+      cn = Serial.read();
+      //Clear out the unused byte.
+      Serial.read();
+      //Construct the selected color.
+      uint32_t nc=strip.Color(cr,cg,cb);
+      //Clamp the predefined color number to a valid value.
+      if(cn>col_tot){cn=col_tot;}
+      if(cn<0){cn=0;}
+      //Update the selected predefined color.
+      colors[cn]=nc;
+    }
     //Strip fill mode. This simply fills the entire strip with a single color. [NN]
     if(csig==44){
       //Get our relevant data.
@@ -315,10 +355,12 @@ void loop(void) {
       //Clear out the unused bytes.
       Serial.read();
       Serial.read();
+      //Clearly, we aren't resuming a render. Also, this command is used for clearing the strip, in which case we're definitely not resuming the render.
+      ren_glx = 0;
       //Construct the selected color.
       uint32_t nc=strip.Color(cr,cg,cb);
       //Step through each pixel and set it to the selected color.
-      for(int i=0;i<led_num;i++){
+      for(int i=0;i<=led_num;i++){
         strip.setPixelColor(i+absolute_offset,nc);
       }
     }
@@ -329,10 +371,17 @@ void loop(void) {
       cth = Serial.read();
       ctl = Serial.read();
       csm = Serial.read();
-      //Contstruct the selected animation delay in milliseconds. This is a WORD to allow for delays longer than 255ms.
+      //Construct the selected animation delay in milliseconds. This is a WORD to allow for delays longer than 255ms.
       sep_dly = (int) word(cth,ctl);
       //Construct the selected separation mode.
       sep_mod = (int) csm;
+      //If a new separation mode has been selected, we won't be resuming the last render.
+      if(sep_mod!=sep_prv){
+        //Clear out the resume variable.
+        ren_glx=0;
+        //Update the previous separation mode to the current one.
+        sep_prv=sep_mod;
+      }
       //Re-intialize the strip with the selected parameters.
       initStrips(color_enable,sep_mod);
       //Initialize our breaking var.
@@ -340,6 +389,15 @@ void loop(void) {
       //Clear out the unused bytes.
       Serial.read();
       Serial.read();
+      //If we're not resuming separation mode, predraw the colors so we don't have empty pixels visible.
+      if(ren_glx==0){
+        //Render a single color-length.
+        for(int x=0;x<col_len;x++){
+          RenderSPM(x);
+        }
+        //Update our resume variable for when we actually start rendering.
+        ren_glx=col_len;
+      }
       //Keep going until told to stop. From here on out the code is production-ready, except breaking is IR- and not Serial-triggered.
       while(i==1){
         //Run through the calculated number of rendering steps. Start where we stopped.
@@ -353,8 +411,10 @@ void loop(void) {
           //Look for the break command.
           if(Serial.read()==31){i=0;break;}
         }
-        //Go back to rendering step zero.
-        ren_glx=0;
+        //If we've made a full render, go back to rendering step zero.
+        if(i!=0){
+          ren_glx=0;
+        }
       }
     }
     //Update the enabled colors mask. This sets color x high or low depending on serial parameters. Also semi-[NN], IR instead of serial, etc. etc.
@@ -369,8 +429,13 @@ void loop(void) {
       Serial.read();
       //Make sure we got a valid command.
       if(ccs==0 || ccs==1){
-        //Enable or disable the selected color.
-        color_enable[ccn]=ccs;
+        //If we're actually changing the color...
+        if(color_enable[ccn]!=ccs){
+          //Enable or disable the selected color.
+          color_enable[ccn]=ccs;
+          //Since we're changing colors, we won't be resuming a render.
+          ren_glx=0;
+        }
       }
     }
     //I'm really not sure what this does, or that it's even valid C, but yet here it stands.

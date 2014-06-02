@@ -1,9 +1,9 @@
 #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
-#AutoIt3Wrapper_Icon=..\Downloads\Fatcow-Farm-Fresh-Port.ico
+#AutoIt3Wrapper_Icon=..\..\..\..\..\Downloads\Fatcow-Farm-Fresh-Port.ico
 #AutoIt3Wrapper_Outfile=SerialLEDs.exe
 #AutoIt3Wrapper_Res_Comment=Test version, further control to be added. Icon via IconArchive.com
 #AutoIt3Wrapper_Res_Description=Serial control of Mars Rising LEDs
-#AutoIt3Wrapper_Res_Fileversion=0.1
+#AutoIt3Wrapper_Res_Fileversion=0.1.0.0
 #AutoIt3Wrapper_Res_Language=1033
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
 #include <CommMG.au3>
@@ -18,7 +18,7 @@ Local $sepRunning = False
 Local $colCon[11]
 Local $colVal[] = [$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED]
 
-GUICreate("LED Control Utility",440,265)
+GUICreate("LED Control Utility",440,320)
 GUICtrlCreateGroup("Fill Strip",10,10,140,110)
 $redc = GUICtrlCreateInput("0",80,30,50,20)
 GUICtrlCreateUpdown($redc)
@@ -104,6 +104,24 @@ $goReset = GUICtrlCreateButton("Reset",170,200,60,20)
 $goOffline = GUICtrlCreateButton("Offline",170,225,60,20)
 GUICtrlCreateGroup("Info",290,220,140,35)
 GUICtrlCreateLabel("Mars Rising LED Utility v1.1",295,235,134,15)
+GUICtrlCreateGroup("Color Separation - Update Color",10,265,420,45)
+$credc = GUICtrlCreateInput("0",55,283,50,20)
+GUICtrlCreateUpdown($credc)
+GUICtrlSetLimit($credc,255,0)
+GUICtrlCreateLabel("Red:",20,285)
+$cgrnc = GUICtrlCreateInput("0",150,283,50,20)
+GUICtrlCreateUpdown($cgrnc)
+GUICtrlSetLimit($cgrnc,255,0)
+GUICtrlCreateLabel("Green:",110,285)
+$cbluc = GUICtrlCreateInput("0",240,283,50,20)
+GUICtrlCreateUpdown($cbluc)
+GUICtrlSetLimit($cbluc,255,0)
+GUICtrlCreateLabel("Blue:",205,285)
+$colorc = GUICtrlCreateInput("0",330,283,50,20)
+GUICtrlCreateUpdown($colorc)
+GUICtrlSetLimit($colorc,255,0)
+GUICtrlCreateLabel("Color:",295,285)
+$setCol = GUICtrlCreateButton("S"&@CRLF&"E"&@CRLF&"T",385,280,40,26)
 
 GUISetState(@SW_SHOW)
 
@@ -203,6 +221,52 @@ Func DoModeAll()
 		_CommSendByte(0)
 		Sleep(25)
 	;Wend
+EndFunc
+
+Func DoColorUpdate()
+	$credn=GUICtrlRead($credc)
+	If $credn>255 Then
+		GUICtrlSetData($credc,255)
+		$credn=GUICtrlRead($credc)
+	EndIf
+	If $credn<0 Then
+		GUICtrlSetData($credc,0)
+		$credn=GUICtrlRead($credc)
+	EndIf
+	$cgrnn=GUICtrlRead($cgrnc)
+	If $cgrnn>255 Then
+		GUICtrlSetData($cgrnc,255)
+		$cgrnn=GUICtrlRead($cgrnc)
+	EndIf
+	If $cgrnn<0 Then
+		GUICtrlSetData($cgrnc,0)
+		$gcrnn=GUICtrlRead($cgrnc)
+	EndIf
+	$cblun=GUICtrlRead($cbluc)
+	If $cblun>255 Then
+		GUICtrlSetData($cbluc,255)
+		$cblun=GUICtrlRead($cbluc)
+	EndIf
+	If $cblun<0 Then
+		GUICtrlSetData($cbluc,0)
+		$cblun=GUICtrlRead($cbluc)
+	EndIf
+	$colorn=GUICtrlRead($colorc)
+	If $colorn>255 Then
+		GUICtrlSetData($colorc,255)
+		$colorn=GUICtrlRead($colorc)
+	EndIf
+	If $colorn<0 Then
+		GUICtrlSetData($colorc,0)
+		$colorn=GUICtrlRead($colorc)
+	EndIf
+	_CommSendByte(50)
+	_CommSendByte(GUICtrlRead($credc))
+	_CommSendByte(GUICtrlRead($cgrnc))
+	_CommSendByte(GUICtrlRead($cbluc))
+	_CommSendByte(GUICtrlRead($colorc))
+	_CommSendByte(0)
+	Sleep(25)
 EndFunc
 
 Func DoClearStrip()
@@ -325,8 +389,8 @@ Func DoModeSep()
 		$timen=GUICtrlRead($timec)
 	EndIf
 	$moden=GUICtrlRead($modec)
-	If $moden>5 Then
-		GUICtrlSetData($modec,5)
+	If $moden>255 Then
+		GUICtrlSetData($modec,255)
 		$moden=GUICtrlRead($modec)
 	EndIf
 	If $moden<0 Then
@@ -354,10 +418,10 @@ Func DoKillSep()
 EndFunc
 
 While 1
-	$msg = _CommGetLine(@CRLF,0,50)
-	If @error==0 and Not($msg=="" or $msg="0") Then
-		ConsoleWrite($msg&@CRLF)
-	EndIf
+	;$msg = _CommGetLine(@CRLF,0,50)
+	;If @error==0 and Not($msg=="" or $msg="0") Then
+	;	ConsoleWrite($msg&@CRLF)
+	;EndIf
 	If $isOnline==True And $sepRunning==False Then
 		Switch GUIGetMsg()
 			;Case $radioModeAll
@@ -381,6 +445,8 @@ While 1
 				serialReset()
 			Case $clrStrip
 				DoClearStrip()
+			Case $setCol
+				DoColorUpdate()
 			Case $GUI_EVENT_CLOSE
 				ExitLoop
 		EndSwitch
