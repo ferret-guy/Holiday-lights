@@ -1,7 +1,7 @@
 //Include required NEC IR library (https://github.com/adafruit/Adafruit-NEC-remote-control-library)
 #include "Adafruit_NECremote.h"
 //Set the pin to which the IR input is connected as Arduino pin 9
-#define IRpin         6
+#define IRpin 2
 //Create NEC IR Remote object named "remote" on pin "IRpin" (pin 9)
 Adafruit_NECremote remote(IRpin);
 
