@@ -26,17 +26,17 @@ int       absolute_offset = 4;     //The number of pixels to skip when drawing. 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(led_num+absolute_offset+1, PIN, NEO_GRB + NEO_KHZ800);
 
 //Colors:
-//1.  Red
-//2.  Green
-//3.  Blue
-//4.  White
-//5.  Orange
-//6.  Yellow
-//7.  Purple
-//8.  Warm White
+//0.  Red
+//1.  Green
+//2.  Blue
+//3.  White
+//4.  Orange
+//5.  Yellow
+//6.  Purple
+//7.  Warm White
+//8.  Turquoise
 //9.  Magenta
-//10. Turquoise
-//11. Amber
+//10. Amber
 
 //Mask of enabled colors.
 boolean color_enable[] = {1,1,1,1,1,1,1,1,1,1,1};
@@ -56,6 +56,16 @@ uint32_t colors[] = {
   strip.Color(255,0,128),    //Magenta
   strip.Color(255,200,25)    //Amber
 };
+
+void colenable(int index){
+  if (color_enable[index]==1){
+        color_enable[index]=0;
+      }else{
+        color_enable[index]=1;
+      }
+      ren_glx = 0;
+}
+
 
 //Calculate the length of each color segment based on the length of the strip and the separation mode. (This is col_len.)
 int CalcCL(int spm){
@@ -290,7 +300,7 @@ void loop(void) {
       }
     }
     //Per-pixel mode, presetting a pixel. This is something of a misnomer, as all that is done is indicating that the current color value is permanent, not actually saving the color value. [NN]
-    if(csig==61){
+    else if(csig==61){
       //Get our relevant data.
       byte cr,cg,cb,lh,ll;
       cr = Serial.read();
@@ -310,7 +320,7 @@ void loop(void) {
       strip.setPixelColor(ln+absolute_offset,nc);
     }
     //Per-pixel mode, un-presetting a pixel. Basically, we stop preserving this color value when it gets passed by a preview. [NN]
-    if(csig==62){
+    else if(csig==62){
       //Get the relevant data.
       byte cr,cg,cb,lh,ll;
       cr = Serial.read();
@@ -328,7 +338,7 @@ void loop(void) {
       strip.setPixelColor(ln+absolute_offset,strip.Color(0,0,0));
     }
     //Color update mode. This allows for predefined colors to be updated, so that separation mode can be previewed with different colors, without reuploading. [NN]
-    if(csig==50){
+    else if(csig==50){
       //Get our relevant data.
       byte cr,cg,cb,cn;
       cr = Serial.read();
@@ -346,7 +356,7 @@ void loop(void) {
       colors[cn]=nc;
     }
     //Strip fill mode. This simply fills the entire strip with a single color. [NN]
-    if(csig==44){
+    else if(csig==44){
       //Get our relevant data.
       byte cr,cg,cb;
       cr = Serial.read();
@@ -362,10 +372,11 @@ void loop(void) {
       //Step through each pixel and set it to the selected color.
       for(int i=0;i<=led_num;i++){
         strip.setPixelColor(i+absolute_offset,nc);
+        
       }
     }
     //Separation mode mode! This runs separation mode, rendered exactly like it would be in a production scenario, with some serial parameters. This is sort of [NN]. In production, it would be controlled by a remote, not a PC, but the separation mode is absolutely neccessary.
-    if(csig==40){
+    else if(csig==40||csig==100){
       //Get some relevant data.
       byte ctl,cth,csm;
       cth = Serial.read();
@@ -409,7 +420,8 @@ void loop(void) {
           //Delay the animation by the selected amount.
           delay(sep_dly);
           //Look for the break command.
-          if(Serial.read()==31){i=0;break;}
+          int cbrk=Serial.read();
+          if(cbrk==102||cbrk==31){i=0;Serial.read();Serial.read();Serial.read();Serial.read();Serial.read();break;}
         }
         //If we've made a full render, go back to rendering step zero.
         if(i!=0){
@@ -418,7 +430,7 @@ void loop(void) {
       }
     }
     //Update the enabled colors mask. This sets color x high or low depending on serial parameters. Also semi-[NN], IR instead of serial, etc. etc.
-    if(csig==30){
+    else if(csig==30){
       //Become enlightened with relevant data.
       byte ccn,ccs;
       ccn = Serial.read();
@@ -439,9 +451,58 @@ void loop(void) {
       }
     }
     //I'm really not sure what this does, or that it's even valid C, but yet here it stands.
-    if(csig==71)
-      for(int i=0;i<5;i++){Serial.read();}
+    else if(csig==71){
+    }
     //Push changes made by serial commands to the strip. Perhaps this should be moved into its own serial command, but for now, no.
+    
+    //RED
+    else if(csig==120){colenable(0);}
+    
+    //Green
+    else if(csig==122){colenable(1);}
+    
+    //Blue
+    else if(csig==121){colenable(2);}
+    
+    //White
+    else if(csig==110){colenable(3);}
+
+    //Orange
+    else if(csig==116){colenable(4);}    
+
+    //Yellow
+    else if(csig==117){colenable(5);}
+    
+    //Purple
+    else if(csig==118){colenable(6);}
+    
+    //Warm White
+    else if(csig==112){colenable(7);}
+    
+    //Turquoise
+    else if(csig==114){colenable(8);}
+    
+    //Magenta
+    else if(csig==108){colenable(9);}
+    
+    //Amber
+    else if(csig==113){colenable(10);}
+  
+    //Incrment Color sepration mode
+    else if(csig==109){
+      if (sep_mod == 3){sep_mod = 1;}
+      else {sep_mod++;}
+      ren_glx = 0;
+  }
+
+    
+    else{
+      for(int i=0;i<5;i++){
+        Serial.read();
+      }
+    }
+
+
     strip.show();
   }
 }
