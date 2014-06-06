@@ -355,26 +355,6 @@ void loop(void) {
       //Update the selected predefined color.
       colors[cn]=nc;
     }
-    //Strip fill mode. This simply fills the entire strip with a single color. [NN]
-    else if(csig==44){
-      //Get our relevant data.
-      byte cr,cg,cb;
-      cr = Serial.read();
-      cg = Serial.read();
-      cb = Serial.read();
-      //Clear out the unused bytes.
-      Serial.read();
-      Serial.read();
-      //Clearly, we aren't resuming a render. Also, this command is used for clearing the strip, in which case we're definitely not resuming the render.
-      ren_glx = 0;
-      //Construct the selected color.
-      uint32_t nc=strip.Color(cr,cg,cb);
-      //Step through each pixel and set it to the selected color.
-      for(int i=0;i<=led_num;i++){
-        strip.setPixelColor(i+absolute_offset,nc);
-        
-      }
-    }
     //Separation mode mode! This runs separation mode, rendered exactly like it would be in a production scenario, with some serial parameters. This is sort of [NN]. In production, it would be controlled by a remote, not a PC, but the separation mode is absolutely neccessary.
     else if(csig==40||csig==100){
       //Get some relevant data.
@@ -429,71 +409,49 @@ void loop(void) {
         }
       }
     }
-    //Update the enabled colors mask. This sets color x high or low depending on serial parameters. Also semi-[NN], IR instead of serial, etc. etc.
-    else if(csig==30){
-      //Become enlightened with relevant data.
-      byte ccn,ccs;
-      ccn = Serial.read();
-      ccs = Serial.read();
-      //Clear out unused bytes.
-      Serial.read();
-      Serial.read();
-      Serial.read();
-      //Make sure we got a valid command.
-      if(ccs==0 || ccs==1){
-        //If we're actually changing the color...
-        if(color_enable[ccn]!=ccs){
-          //Enable or disable the selected color.
-          color_enable[ccn]=ccs;
-          //Since we're changing colors, we won't be resuming a render.
-          ren_glx=0;
-        }
-      }
-    }
     //I'm really not sure what this does, or that it's even valid C, but yet here it stands.
     else if(csig==71){
     }
     //Push changes made by serial commands to the strip. Perhaps this should be moved into its own serial command, but for now, no.
     
     //RED
-    else if(csig==120){colenable(0);for(int i=0;i<5;i++){Serial.read();}}
+    else if(csig==120){colenable(0);}
     
     //Green
-    else if(csig==122){colenable(1);for(int i=0;i<5;i++){Serial.read();}}
+    else if(csig==122){colenable(1);}
     
     //Blue
-    else if(csig==121){colenable(2);for(int i=0;i<5;i++){Serial.read();}}
+    else if(csig==121){colenable(2);}
     
     //White
-    else if(csig==110){colenable(3);for(int i=0;i<5;i++){Serial.read();}}
+    else if(csig==110){colenable(3);}
 
     //Orange
-    else if(csig==116){colenable(4);for(int i=0;i<5;i++){Serial.read();}}    
+    else if(csig==116){colenable(4);}    
 
     //Yellow
-    else if(csig==117){colenable(5);for(int i=0;i<5;i++){Serial.read();}}
+    else if(csig==117){colenable(5);}
     
     //Purple
-    else if(csig==118){colenable(6);for(int i=0;i<5;i++){Serial.read();}}
+    else if(csig==118){colenable(6);}
     
     //Warm White
-    else if(csig==112){colenable(7);for(int i=0;i<5;i++){Serial.read();}}
+    else if(csig==112){colenable(7);}
     
     //Turquoise
-    else if(csig==114){colenable(8);for(int i=0;i<5;i++){Serial.read();}}
+    else if(csig==114){colenable(8);}
     
     //Magenta
-    else if(csig==108){colenable(9);for(int i=0;i<5;i++){Serial.read();}}
+    else if(csig==108){colenable(9);}
     
     //Amber
-    else if(csig==113){colenable(10);for(int i=0;i<5;i++){Serial.read();}}
+    else if(csig==113){colenable(10);}
   
     //Incrment Color sepration mode
     else if(csig==109){
       if (sep_mod == 3){sep_mod = 1;}
       else {sep_mod++;}
       ren_glx = 0;
-      for(int i=0;i<5;i++){Serial.read();}
   }
 
     
