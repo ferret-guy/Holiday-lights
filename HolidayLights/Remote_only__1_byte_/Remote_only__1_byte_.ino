@@ -259,7 +259,7 @@ void setup(void) {
 //The main chunk of the program.
 void loop(void) {
   //Listen for our 6-byte serial packet.
-  if(Serial.available()>=6){
+  if(Serial.available()==){
     //Get the signature/command byte, which tells us what the rest of the data means.
     byte csig;
     csig = Serial.read();
@@ -452,7 +452,7 @@ void loop(void) {
       if (sep_mod == 3){sep_mod = 1;}
       else {sep_mod++;}
       ren_glx = 0;
-  }
+    }
 
     
     else{
@@ -465,16 +465,3 @@ void loop(void) {
     strip.show();
   }
 }
-
-
-///// FINAL REMARKS /////
-//    Separation mode is fully functional on odd separation modes. It breaks thoroughly on even values, likely due to the way
-//offsets are calculated. This needs fixing. The LED Control Utility is a great debugging and testing tool, and due to being
-//written in AutoIt3 is easily modified. Twinkling and glowing should be fairly trivial, just using a weighted random value.
-//The equations I developed earlier might be more smooth or objectively "better," but ultimately it will be difficult to notice.
-//Perhaps (pre)calculating random values every 10 frames and blending towards them?
-//   The big thing that need to be implemented is IR interrupt control. I don't know how difficult this will be, but it'll be
-//a challenge. With that implemented, the serial control functions could be fairly easily ported to accept IR codes instead of
-//the more flexible PC control.
-/////////////////////////
-

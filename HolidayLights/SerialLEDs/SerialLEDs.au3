@@ -18,7 +18,7 @@ Local $sepRunning = False
 Local $colCon[11]
 Local $colVal[] = [$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED,$GUI_CHECKED]
 
-GUICreate("LED Control Utility",570,320)
+GUICreate("LED Control Utility",575,320)
 GUICtrlCreateGroup("Fill Strip",10,10,140,110)
 $redc = GUICtrlCreateInput("0",80,30,50,20)
 GUICtrlCreateUpdown($redc)
@@ -103,7 +103,7 @@ $goOnline = GUICtrlCreateButton("Online",170,175,60,20)
 $goReset = GUICtrlCreateButton("Reset",170,200,60,20)
 $goOffline = GUICtrlCreateButton("Offline",170,225,60,20)
 GUICtrlCreateGroup("Info",290,220,140,35)
-GUICtrlCreateLabel("Mars Rising LED Utility v1.2",295,235,134,15)
+GUICtrlCreateLabel("Mars Rising LED Utility v1.3",295,235,134,15)
 GUICtrlCreateGroup("Color Separation - Update Color",10,265,420,45)
 $credc = GUICtrlCreateInput("0",55,283,50,20)
 GUICtrlCreateUpdown($credc)
@@ -126,14 +126,19 @@ GUICtrlCreateGroup("Remote",440,10,125,210)
 $remOn = GUICtrlCreateButton("Powr",450,25,35,30)
 GUICtrlSetBkColor ( $remOn, 0x00FF00)
 $remSpeUp = GUICtrlCreateButton("Spe+",487,25,35,30)
+GUICtrlSetBkColor ( $remSpeUp, 0xEEEEEE)
 $remOff = GUICtrlCreateButton("Off",524,25,35,30)
 GUICtrlSetBkColor ( $remOff, 0xFF0000)
 $remBriUp = GUICtrlCreateButton("Bri+",450,57,35,30)
+GUICtrlSetBkColor ( $remBriUp, 0xEEEEEE)
 $remSpeDown = GUICtrlCreateButton("Spe-",487,57,35,30)
+GUICtrlSetBkColor ( $remSpeDown, 0xEEEEEE)
 $remBriDown = GUICtrlCreateButton("Bri-",524,57,35,30)
+GUICtrlSetBkColor ( $remBriDown, 0xEEEEEE)
 $remColMGM = GUICtrlCreateButton("Mage",450,89,35,30)
 GUICtrlSetBkColor ( $remColMGM, 0xFF00FF)
 $remMode = GUICtrlCreateButton("Mode",487,89,35,30)
+GUICtrlSetBkColor ( $remMode, 0xEEEEEE)
 $remColWHT = GUICtrlCreateButton("Whit",524,89,35,30)
 GUICtrlSetBkColor ( $remColWHT, 0xFFFFFF)
 $remColWRW = GUICtrlCreateButton("WmWh",450,121,35,30)
@@ -154,6 +159,10 @@ $remColBLU = GUICtrlCreateButton("Blue",487,183,35,30)
 GUICtrlSetBkColor ( $remColBLU, 0x0000FF)
 $remColGRN = GUICtrlCreateButton("Green",524,183,35,30)
 GUICtrlSetBkColor ( $remColGRN, 0x00FF00)
+GUICtrlCreateGroup("Brightness",440,265,125,45)
+$bric = GUICtrlCreateInput("255",450,283,60,20)
+GUICtrlCreateUpdown($bric)
+$doBri = GUICtrlCreateButton("SET",515,282,45,22)
 
 GUISetState(@SW_SHOW)
 
@@ -203,6 +212,22 @@ Func serialOff()
 	GUICtrlSetGraphic($conInd,$GUI_GR_RECT,0,0,25,95)
 EndFunc
 
+Func DoSetBrightness()
+    $brin=GUICtrlRead($bric)
+	If $brin>255 Then
+		GUICtrlSetData($bric,255)
+		$brin=GUICtrlRead($bric)
+	EndIf
+	If $brin<0 Then
+		GUICtrlSetData($bric,0)
+		$brin=GUICtrlRead($bric)
+	EndIf
+	_CommSendByte(253)
+	_CommSendByte(2)
+	_CommSendByte(21)
+	_CommSendByte($brin)
+EndFunc
+
 Func DoModeAll()
 	;While 1
 		;Switch GUIGetMsg()
@@ -245,12 +270,15 @@ Func DoModeAll()
 			GUICtrlSetData($bluc,0)
 			$blun=GUICtrlRead($bluc)
 		EndIf
+		_CommSendByte(253)
+		_CommSendByte(4)
 		_CommSendByte(44)
 		_CommSendByte(GUICtrlRead($redc))
 		_CommSendByte(GUICtrlRead($grnc))
 		_CommSendByte(GUICtrlRead($bluc))
-		_CommSendByte(0)
-		_CommSendByte(0)
+		;_CommSendByte(0)
+		;_CommSendByte(0)
+		;_CommSendByte(254)
 		Sleep(25)
 	;Wend
 EndFunc
@@ -292,22 +320,28 @@ Func DoColorUpdate()
 		GUICtrlSetData($colorc,0)
 		$colorn=GUICtrlRead($colorc)
 	EndIf
+	_CommSendByte(253)
+	_CommSendByte(6)
 	_CommSendByte(50)
 	_CommSendByte(GUICtrlRead($credc))
 	_CommSendByte(GUICtrlRead($cgrnc))
 	_CommSendByte(GUICtrlRead($cbluc))
 	_CommSendByte(GUICtrlRead($colorc))
 	_CommSendByte(0)
+	;_CommSendByte(254)
 	Sleep(25)
 EndFunc
 
 Func DoClearStrip()
+	_CommSendByte(253)
+	_CommSendByte(4)
 	_CommSendByte(44)
 	_CommSendByte(0)
 	_CommSendByte(0)
 	_CommSendByte(0)
-	_CommSendByte(0)
-	_CommSendByte(0)
+	;_CommSendByte(0)
+	;_CommSendByte(0)
+	;_CommSendByte(254)
 EndFunc
 
 Func DoModePix($submode)
@@ -352,12 +386,15 @@ Func DoModePix($submode)
 	EndIf
 	$pixelh=BitAND(BitShift($pixeln,8),255)
 	$pixell=BitAND($pixeln,255)
+	_CommSendByte(253)
+	_CommSendByte(6)
 	_CommSendByte($submode)
 	_CommSendByte(GUICtrlRead($predc))
 	_CommSendByte(GUICtrlRead($pgrnc))
 	_CommSendByte(GUICtrlRead($pbluc))
 	_CommSendByte($pixelh)
 	_CommSendByte($pixell)
+	;_CommSendByte(254)
 	Sleep(25)
 EndFunc
 
@@ -374,12 +411,15 @@ Func DoPreviewPix()
 EndFunc
 
 Func DoChangeCol($col,$case)
+	_CommSendByte(253)
+	_CommSendByte(3)
 	_CommSendByte(30)
 	_CommSendByte($col)
 	_CommSendByte($case)
-	_CommSendByte(0)
-	_CommSendByte(0)
-	_CommSendByte(0)
+	;_CommSendByte(0)
+	;_CommSendByte(0)
+	;_CommSendByte(0)
+	;_CommSendByte(254)
 EndFunc
 
 Func DoOnCol($col)
@@ -389,75 +429,129 @@ EndFunc
 ; Start remote emulation*****************
 
 Func Remote_On()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(100)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_SpeUp()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(101)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_Off()
+	;_CommSendByte(253)
+	;_CommSendByte(1)
 	_CommSendByte(102)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_BriUp()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(104)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_SpeDown()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(105)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_BriDown()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(106)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_ColMGM()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(108)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_Mode()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(109)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_ColWHT()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(110)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_ColWRW()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(112)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_ColAMB()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(113)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_ColTRQ()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(114)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_ColORM()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(116)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_ColYLO()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(117)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_ColPRP()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(118)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_ColRED()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(120)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_ColBLU()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(121)
+	;_CommSendByte(254)
 EndFunc
 
 Func Remote_ColGRN()
+	_CommSendByte(253)
+	_CommSendByte(1)
 	_CommSendByte(122)
+	;_CommSendByte(254)
 EndFunc
 ; End remote emulation*******************
 
@@ -508,32 +602,38 @@ Func DoModeSep()
 	$timel=BitAND($timen,255)
 	;$timeh=30
 	;$timel=30
+	_CommSendByte(253)
+	_CommSendByte(4)
 	_CommSendByte(40)
 	_CommSendByte($timeh)
 	_CommSendByte($timel)
 	_CommSendByte($moden)
-	_CommSendByte(0)
-	_CommSendByte(0)
+	;_CommSendByte(0)
+	;_CommSendByte(0)
+	;_CommSendByte(254)
 	$sepRunning=True
 	Sleep(25)
 EndFunc
 
 Func DoKillSep()
+	;_CommSendByte(253)
+	;_CommSendByte(1)
 	_CommSendByte(31)
-	_CommSendByte(0)
-	_CommSendByte(0)
-	_CommSendByte(0)
-	_CommSendByte(0)
-	_CommSendByte(0)
+	;_CommSendByte(0)
+	;_CommSendByte(0)
+	;_CommSendByte(0)
+	;_CommSendByte(0)
+	;_CommSendByte(0)
+	;_CommSendByte(254)
 	$sepRunning=False
 	Sleep(15)
 EndFunc
 
 While 1
-	$msg = _CommGetLine(@CRLF,0,50)
-	If @error==0 and Not($msg=="" or $msg="0") Then
-		ConsoleWrite($msg&@CRLF)
-	EndIf
+	;$msg = _CommGetLine(@CRLF,0,50)
+	;If @error==0 and Not($msg=="" or $msg="0") Then
+	;	ConsoleWrite($msg&@CRLF)
+	;EndIf
 	If $isOnline==True And $sepRunning==False Then
 		Switch GUIGetMsg()
 			;Case $radioModeAll
@@ -595,7 +695,8 @@ While 1
 				Remote_ColGRN()
 			Case $remMode
 				Remote_Mode()
-
+			Case $doBri
+				DoSetBrightness()
 			Case $GUI_EVENT_CLOSE
 				ExitLoop
 		EndSwitch
