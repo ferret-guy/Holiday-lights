@@ -70,12 +70,14 @@ uint32_t colors[] = {
 };
 
 void colenable(int index){
-  if (color_enable[index]==1){
-        color_enable[index]=0;
-      }else{
-        color_enable[index]=1;
-      }
-      ren_glx = 0;
+  if(col_num>2){
+    if (color_enable[index]==1){
+      color_enable[index]=0;
+    }else{
+      color_enable[index]=1;
+    }
+    ren_glx = 0;
+  }else{color_enable[index]=1;}
 }
 
 
@@ -85,14 +87,15 @@ int CalcCL(int spm){
   int ccl = 1;
   //If separation mode is non-zero...
   if(spm>0){
-    //The color length is calculated. It might be wise to ditch this whole block of code and replace it with floating-point math.
-    //Really, it can't even handle even-number separation mode. It needs major TLC.
-    ccl = ceil(((led_num/spm)/col_num));
-    if(ccl<1){ccl=1;}
-    //Calculate the floating-point color length.
-    col_fln = (led_num/spm)/col_num;
-    col_seg = (int) (ccl*col_num);
-    col_rep = led_num/col_seg;
+    //The color length is calculated.
+    if(col_num>0){
+      ccl = ceil(((led_num/spm)/col_num));
+      if(ccl<1){ccl=1;}
+      //Calculate the floating-point color length.
+      col_fln = (led_num/spm)/col_num;
+      col_seg = (int) (ccl*col_num);
+      col_rep = led_num/col_seg;
+    }else{ccl=1;}
     //Serial.print("CCL: ");
     //Serial.println(ccl,DEC);
     //Total up the moduli (remainders) of the integer division.
@@ -139,6 +142,7 @@ int CalcCN(boolean cle[]){
   for(int cc=0;cc<col_tot;cc++){
     if(cle[cc]){cur++;}
   }
+  if(cur==0){cur=1;}
   return cur;
 }
 
@@ -147,7 +151,7 @@ void initStrips(boolean cle[],int spm){
   //Update our globals.
   col_num = CalcCN(cle);
   col_len = CalcCL(spm);
-  //Set the number of render steps. For whatever reason (I blame the offsetter) this isn't accurate.
+  //Set the number of render steps.
   if(spm>0){
     ren_stp = col_seg;
   }else{
@@ -174,88 +178,94 @@ void RenderSPM(int offset){
   int rend_step = 1; //NOT TO BE CONFUSED WITH ren_stp. Honestly, I shouldn't have named it this, but I did.
   int col_step = 0;
   int spm_step = -1;
-  //If separation mode is 1 or higher...
-  if(sep_mod>0){
-    //This while loop increments spm_step to draw multiple instances of the separation for modes 2 and up.
-    while(spm_step<=col_rep){
-      //Serial.println("sep_mod:");
-      //Serial.println(sep_mod,DEC);
-      //Serial.println("spm_step:");
-      //Serial.println(spm_step,DEC);
-      //Really, this needs to get reset. Spent hours trying to figure this out.
-      col_step=0;
-      rend_step=0;
-      //This while loop steps through the different colors.
-      while(col_step<col_tot){
-        //If the color is enabled, render it.
-        if(color_enable[col_step]){
-          //Hours...
-          //Serial.println("col_step:");
-          //Serial.println(col_step,DEC);
-          //Serial.println("sep_mod:");
-          //Serial.println(sep_mod,DEC);
-          //Serial.println("col_len:");
-          //Serial.println(col_len,DEC);
-          //Serial.println("sep_mod:");
-          //Serial.println(sep_mod,DEC);
-          //Serial.println("offset:");
-          //Serial.println(offset,DEC);
-          //Serial.println("spm_step:");
-          //Serial.println(spm_step,DEC);
-          //Serial.println("current color_offset:");
-          //Serial.println(color_offset[col_step],DEC);
-          //Calculate what pixel we should be drawing to.                \/ This is where we move over a lot for separatio mode 2+.
-          int pixnum=(rend_step*(col_len))+offset+0*color_offset[col_step]+(col_seg*spm_step);
-          //Serial.println("pre pixnum:");
-          //Serial.println(pixnum,DEC);
-          //Roll over from the end of the strip. This could be changed to a if, but other code needs checking first.
-          //while(pixnum>=led_num){
-          //  pixnum-=led_num;
-          //}
-          //Don't draw to pixels lower than the absolute offset.
-          if(pixnum<0){
-            pixnum=-absolute_offset-1;
+  //Make sure we have a nonzero number of colors
+  if(col_num>0){
+    //If separation mode is 1 or higher...
+    if(sep_mod>0){
+      //This while loop increments spm_step to draw multiple instances of the separation for modes 2 and up.
+      while(spm_step<=col_rep){
+        //Serial.println("sep_mod:");
+        //Serial.println(sep_mod,DEC);
+        //Serial.println("spm_step:");
+        //Serial.println(spm_step,DEC);
+        //Really, this needs to get reset. Spent hours trying to figure this out.
+        col_step=0;
+        rend_step=0;
+        //This while loop steps through the different colors.
+        while(col_step<col_tot){
+          //If the color is enabled, render it.
+          if(color_enable[col_step]){
+            //Hours...
+            //Serial.println("col_step:");
+            //Serial.println(col_step,DEC);
+            //Serial.println("sep_mod:");
+            //Serial.println(sep_mod,DEC);
+            //Serial.println("col_len:");
+            //Serial.println(col_len,DEC);
+            //Serial.println("sep_mod:");
+            //Serial.println(sep_mod,DEC);
+            //Serial.println("offset:");
+            //Serial.println(offset,DEC);
+            //Serial.println("spm_step:");
+            //Serial.println(spm_step,DEC);
+            //Serial.println("current color_offset:");
+            //Serial.println(color_offset[col_step],DEC);
+            //Calculate what pixel we should be drawing to.                \/ This is where we move over a lot for separatio mode 2+.
+            int pixnum=(rend_step*(col_len))+offset+0*color_offset[col_step]+(col_seg*spm_step);
+            //Serial.println("pre pixnum:");
+            //Serial.println(pixnum,DEC);
+            //Roll over from the end of the strip. This could be changed to a if, but other code needs checking first.
+            //while(pixnum>=led_num){
+            //  pixnum-=led_num;
+            //}
+            //Don't draw to pixels lower than the absolute offset.
+            if(pixnum<0){
+              pixnum=-absolute_offset-1;
+            }
+            //Serial.println("post pixnum:");
+            //Serial.println(pixnum,DEC);
+            //Draw the pixel in the correct color.
+            strip.setPixelColor(pixnum+absolute_offset,colors[col_step]);
+            //This  \/  little guy caused quite a few problems. The less modulo the better.
+            //offset+=col_len;
+            //HOURS.
+            //Serial.println("post offset:");
+            //Serial.println("who cares, this is what broke it");
+            //Go to the next color length.
+            rend_step++;
           }
-          //Serial.println("post pixnum:");
-          //Serial.println(pixnum,DEC);
-          //Draw the pixel in the correct color.
-          strip.setPixelColor(pixnum+absolute_offset,colors[col_step]);
-          //This  \/  little guy caused quite a few problems. The less modulo the better.
-          //offset+=col_len;
-          //HOURS.
-          //Serial.println("post offset:");
-          //Serial.println("who cares, this is what broke it");
-          //Go to the next color length.
-          rend_step++;
+          //Go to the next color.
+          col_step++;
+        }
+        //Draw the next separation instance.
+        spm_step++;
+      }
+    //Draw separation mode 0. We handle this separately as the effect achived is actually the expected result of the separation mode approaching infinity, where as true mode zero would be a single color of infinite length.
+    }else{
+      //Pretty simple stuff. It won't need changing, ever.
+      //Calculate how many times the pattern needs repeating.
+      int led_rpt=led_num/col_num;
+      //Initialize a thing.
+      int pixnum=0;
+      //Step through the colors.
+      while(col_step<col_tot){
+        //If a color is enabled, draw it.
+        if(color_enable[col_step]){
+          //Repeat it however many times with the offset increased by the total colors.
+          for(int i=0;i<led_num;i+=col_num){
+            pixnum = col_step+i+offset;
+            if(pixnum>led_num){pixnum-=led_num;}
+              //Actually draw the pixel.
+              strip.setPixelColor(pixnum+absolute_offset,colors[col_step]);
+          }
         }
         //Go to the next color.
         col_step++;
       }
-      //Draw the next separation instance.
-      spm_step++;
     }
-  //Draw separation mode 0. We handle this separately as the effect achived is actually the expected result of the separation mode approaching infinity, where as true mode zero would be a single color of infinite length.
+  //If there are no colors enabled, draw black, so as to not break everything.
   }else{
-    //Pretty simple stuff. It won't need changing, ever.
-    //Calculate how many times the pattern needs repeating.
-    int led_rpt=led_num/col_num;
-    //Initialize a thing.
-    int pixnum=0;
-    //Step through the colors.
-    while(col_step<col_tot){
-      //If a color is enabled, draw it.
-      if(color_enable[col_step]){
-        //Repeat it however many times with the offset increased by the total colors.
-        for(int i=0;i<led_num;i+=col_num){
-          pixnum = col_step+i+offset;
-          if(pixnum>led_num){pixnum-=led_num;}
-          //Actually draw the pixel.
-          strip.setPixelColor(pixnum+absolute_offset,colors[col_step]);
-        }
-      }
-      //Go to the next color.
-      col_step++;
-    }
+    FillStrip(0,0,0);
   }
   //Actually send all these changes to the strip. We do this last for due to major opimization issues, as well as to avoid visually staggered rendering.
   strip.show();
