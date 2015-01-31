@@ -1,6 +1,10 @@
+#include <Adafruit_NECremote.h>
 #include <Adafruit_NeoPixel.h>
+
 //Pin the strip is on.
-#define PIN 7
+#define PIN 11
+//Pin the IR Sensor is on.
+#define IRpin 2
 
 //Serial Definitions
 #define STARTBIT          253
@@ -15,26 +19,27 @@
 #define KILLSEPBIT        31
 
 //Define our globals.
-int       led_num         = 99;    //Total number of LEDs, zero-ordinated. Due to a less than healthy mix of zero- and one-ordination, the best solution is to confuse the other algorithms with an odd number.
+int       led_num         = 59;    //Total number of LEDs, zero-ordinated.
 int       col_tot         = 11;    //Total colors defined. This will almost certainly be 11, but there's nothing wrong with a little open-endedness.
 int       col_len         = 0;     //The length of each color segment. This is calculated later.
 float     col_fln         = 0;     //The floating-point color length.
 int       col_seg         = 0;     //The length of each separation mode segment.
 int       col_num         = 0;     //The number of active/enabled colors. This is calculated later.
 int       col_rep         = 0;     //The number of times to draw the colors in color separation mode 2+.
-uint32_t  col_lst;                 //The last preset color passed by per-pixel mode. Dirty RAM-saving hack. [NN]
 int       ren_stp         = 0;     //The number of iterations the rendering loop goes through before resetting. This is calculated later.
-int       ren_lst         = -1;    //The last pixel passed by per-pixel mode. [NN]
-boolean   ren_msk[256];            //The preset pixel map for per-pixel mode. Absorbs all your RAM. [NN]
-int       ren_glx         = 0;     //Useful for resuming color separation mode as opposed to restarting the animation. Not really necessary.
+int       ren_glx         = 0;     //Useful for resuming color separation mode as opposed to restarting the animation.
 int       ren_bri         = 255;   //Global brightness multiplier. 255 is fullbright, 0 is blackout.
 int       sep_mod         = 1;     //The current separation mode.
 int       sep_prv         = 1;     //The previous separation mode.
 int       sep_dly         = 100;   //The current animation frame delay.
-int       absolute_offset = 4;     //The number of pixels to skip when drawing. Only purpose is to skip the four NeoPixels indev. [NN]
+int       absolute_offset = 0;     //The number of pixels to skip when drawing. Artifact from an old devkit.
+int       cmd_last        = 0;     //The last IR code recieved.
+int       mode_state      = 0;     //Used to assist in switching modes.
 
 //Initialize our strip. There needs to be a way to clear this out, because when additional physical LED strips are added, the length can only be changed by redefining the strip.
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(led_num+absolute_offset+1, PIN, NEO_GRB + NEO_KHZ800);
+//Initialize our IR sensor.
+Adafruit_NECremote remote(IRpin);
 
 //Colors:
 //0.  Red
@@ -121,8 +126,6 @@ void initStrips(boolean cle[],int spm){
   }else{
     ren_stp = led_num;
   }
-  //Initialize the render mask.
-  for(int i=0;i<256;i++){ren_msk[i]=0;}
   //Initialize our strip.
   strip.begin();
   strip.setBrightness(ren_bri);
@@ -205,85 +208,111 @@ void FillStrip(int cr, int cg, int cb){
   }
 }
 
+//Fill the strip with a predefined color.
+void FillStripC(uint32_t nc){
+  //Step through each pixel and set it to the selected color.
+    for(int i=0;i<=led_num;i++){
+      strip.setPixelColor(i+absolute_offset,nc);
+  }
+}
+
 //Single byte command processor. This is split out so that we can take commands during separation mode with ease.
-//**********************************************************************************************************************************TODO: I think IR stuff goes here?
 int SingleByteCommand(int csig){
   int gret=0;
   
   //Red
-  if(csig==120){colenable(0);}
+  if(csig==9){colenable(0);}
   
   //Green
-  else if(csig==122){colenable(1);}
+  else if(csig==8){colenable(1);}
   
   //Blue
-  else if(csig==121){colenable(2);}
+  else if(csig==10){colenable(2);}
   
   //White
-  else if(csig==110){colenable(3);}
+  else if(csig==11){colenable(3);}
   
   //Orange
-  else if(csig==116){colenable(4);}    
- 
+  else if(csig==13){colenable(4);}
+  
   //Yellow
-  else if(csig==117){colenable(5);}
+  else if(csig==12){colenable(5);}
   
   //Purple
-  else if(csig==118){colenable(6);}
+  else if(csig==14){colenable(6);}
   
   //Warm White
-  else if(csig==112){colenable(7);}
+  else if(csig==15){colenable(7);}
   
   //Turquoise
-  else if(csig==114){colenable(8);}
+  else if(csig==20){colenable(8);}
   
   //Magenta
-  else if(csig==108){colenable(9);}
+  else if(csig==22){colenable(9);}
   
   //Amber
-  else if(csig==113){colenable(10);}
+  else if(csig==21){colenable(10);}
   
   //Speed Down
-  else if(csig==105){sep_dly+=15;if(sep_dly>250){sep_dly=250;}gret=1;}
+  else if(csig==27){sep_dly+=15;if(sep_dly>250){sep_dly=250;}gret=1;}
   
   //Speed Up
-  else if(csig==101){sep_dly-=15;if(sep_dly<10){sep_dly=10;}gret=1;}
+  else if(csig==23){sep_dly-=15;if(sep_dly<10){sep_dly=10;}gret=1;}
   
   //Brightness Down
-  else if(csig==106){ren_bri-=15;if(ren_bri<10){ren_bri=10;}gret=1;strip.setBrightness(ren_bri);}
+  else if(csig==4){ren_bri-=15;if(ren_bri<15){ren_bri=15;}gret=1;strip.setBrightness(ren_bri);}
   
   //Brightness Up
-  else if(csig==104){ren_bri+=15;if(ren_bri>255){ren_bri=255;}gret=1;strip.setBrightness(ren_bri);}
+  else if(csig==5){ren_bri+=15;if(ren_bri>255){ren_bri=255;}gret=1;strip.setBrightness(ren_bri);}
   
   //Incrment Color sepration mode
-  else if(csig==109){
+  else if(csig==24){
     if (sep_mod == 3){sep_mod = 0;}
     else {sep_mod++;}
     ren_glx = 0;
   }
+  
+  //Someone held down the button, and we haven't implemented that yet.
+  else if(csig==-3){gret=1;}
+  
   return gret;
 }
 
+int SingleColorCommand(int csig){
+  //Red
+  if(csig==9){FillStripC(colors[0]);}
+  //Green
+  else if(csig==8){FillStripC(colors[1]);}
+  //Blue
+  else if(csig==10){FillStripC(colors[2]);}
+  //White
+  else if(csig==11){FillStripC(colors[3]);}
+  //Orange
+  else if(csig==13){FillStripC(colors[4]);}    
+  //Yellow
+  else if(csig==12){FillStripC(colors[5]);}
+  //Purple
+  else if(csig==14){FillStripC(colors[6]);}
+  //Warm White
+  else if(csig==15){FillStripC(colors[7]);}
+  //Turquoise
+  else if(csig==20){FillStripC(colors[8]);}
+  //Magenta
+  else if(csig==22){FillStripC(colors[9]);}
+  //Amber
+  else if(csig==21){FillStripC(colors[10]);}
+
+}
+
+//Predraw all the pixels so separation mode doesn't fill over initial black.
 void SPMPreRender(int offs){
   for(int x=offs;x<col_len+offs;x++){
     RenderSPM(x);
   }
 }
 
-//Run separation mode with specified parameters. All serial commands should be handled like this, but only this one needs to be.
-//*************************************************************************************************************************************************TODO: SerialSepRenHandler -> InfraredSepRenHandler in more ways than one
-void SerialSepRenHandler(int cth, int ctl, int csm){
-  //Construct the selected animation delay in milliseconds. This is a WORD to allow for delays longer than 255ms.
-  sep_dly = (int) word(cth,ctl);
-  //Construct the selected separation mode.
-  sep_mod = (int) csm;
-  //If a new separation mode has been selected, we won't be resuming the last render.
-  if(sep_mod!=sep_prv){
-    //Clear out the resume variable.
-    ren_glx=0;
-    //Update the previous separation mode to the current one.
-    sep_prv=sep_mod;
-  }
+//Run separation mode from IR.
+void InfraredSepRenHandler(){
   //Re-intialize the strip with the selected parameters.
   initStrips(color_enable,sep_mod);
   //Initialize our breaking var.
@@ -297,31 +326,23 @@ void SerialSepRenHandler(int cth, int ctl, int csm){
   }else{
     SPMPreRender(ren_glx-col_len);
   }
-  //Keep going until told to stop. From here on out the code is production-ready, except breaking is IR- and not Serial-triggered.
+  //Keep going until told to stop.
   while(i==1){
-    //Serial.println("Begin render outer loop");
     //Run through the calculated number of rendering steps. Start where we stopped.
     for(int x=ren_glx;x<ren_stp;x++){
       //Render it!
       RenderSPM(x);
       //Keep track of where we are so that we can pause and resume.
       ren_glx=x;
-      //Delay the animation by the selected amount.
-      delay(sep_dly);
-      //Look for the break command.
-      //*************************************************************************************************************************************TODO: Refactor in-loop controls?
-      int cbrk=Serial.read();
-      if(cbrk==STARTBIT){
-        delay(3);
-        int cbl=Serial.read();
-        int cret = 0;
-        if(cbl==1){
-          delay(1);
-          cret = SingleByteCommand(Serial.read());
-        }
-        if(cret==0){initStrips(color_enable,sep_mod);ren_glx=col_len;SPMPreRender(0);break;}
-      }
-      if(cbrk==31||cbrk==102){i=0;FillStrip(0,0,0);break;}//If the command is right, break from the sepmod loop.
+      //Delay the animation by the selected amount, and get an IR command. Two stones with one bird.
+      cmd_last = remote.listen(sep_dly);
+      
+      int cret = 1;
+      if(cmd_last>0){cret=SingleByteCommand(cmd_last);}//Run the IR command.
+      Serial.println(cret);
+      if(cmd_last==6||cmd_last==25){i=0;FillStrip(0,0,0);strip.show();break;}//If the command is right, break from the sepmod loop.
+      if(cret==0){initStrips(color_enable,sep_mod);ren_glx=col_len;SPMPreRender(0);break;}//Reset and restart sepmod for necessary changes
+      cmd_last = 0;//Make sure we don't re-run commands.
     }
     //If we've made a full render, go back to rendering step zero.
     if(ren_glx==(ren_stp-1)){
@@ -329,6 +350,22 @@ void SerialSepRenHandler(int cth, int ctl, int csm){
     }
   }
 }
+
+//Does solid colors
+void InfraredSolidHandler(){
+  initStrips(color_enable,sep_mod);
+  int i=1;
+  FillStrip(255,255,255);
+  while(i==1){
+    cmd_last=remote.listen(250);
+    SingleColorCommand(cmd_last);
+    strip.show();
+    if(cmd_last==6||cmd_last==26){break;}
+  }
+  FillStrip(0,0,0);
+  strip.show();
+}
+  
 
 //This runs first, setting up the necessary things. Since this is the PC-control setup, there isn't much, and most everything is condensed into initStrips.
 void setup(void) {
@@ -338,155 +375,13 @@ void setup(void) {
   Serial.begin(9600);
 }
 
-//***************************************************************************************************************************************************************TODO: shit needs refactoring yo
 //The main chunk of the program.
 void loop(void) {
-  //Listen for our variable-length serial packet!
-  int  vs = 0;        //Valid serial?
-  int  msg_max = 16;  //Max message length.
-  byte msg_dat[16];   //[insert message here]
-  int  msg_len = 0;   //Current message length.
-  //Block until serial is available.
-  while(!Serial.available()){}
-  delay(10);
-  //It should be available, but no one likes changing indents.
-  if(Serial.available()){
-    //Get the first byte.
-    int sb = Serial.read();
-    //Let the LED Control Utility catch up, it's slower than a 16MHz AVR.
-    delay(10);
-    //Check if the first bit is actually the start of a packet.
-    if(sb==STARTBIT){
-      //Serial.println("Started!");
-      //Find out how long the packet will be.
-      msg_len = Serial.read();
-      //It can't be longer than the max length.
-      if(msg_len>msg_max){msg_len=msg_max;}
-      //We've received valid serial, so set this to true.
-      vs=1;
-      //Serial.print("Length: ");
-      //Serial.println(msg_len,DEC);
-      //Block until whole message is here.
-      while(Serial.available()<msg_len){}
-      //Read our bytes into msg_dat.
-      for(int i=0;i<msg_len;i++){
-        sb = Serial.read();
-        //Serial.print("Got: ");
-        //Serial.println(sb,DEC);
-        msg_dat[i]=sb;
-        //Again, let the utility catch up.
-        delay(1);
-      }
-      //This is from when there was a start bit and a stop bit, which was stupid because often the data value was equal to the stop bit...
-/*    while(st==0){
-        sb = Serial.read();
-        Serial.print("Got: ");
-        Serial.println(sb,DEC);
-        if(sb==STOPBIT){
-          vs = 1;
-          st = 1;
-        }else{
-          msg_dat[msg_len]=sb;
-          msg_len++;
-        }
-        if(msg_len==msg_max){
-          st = 1;
-          vs = -1;
-        }
-        delay(1);
-      }*/
-      //Serial.println("Stopped!");
-    }else{
-      //Serial.println("Invalid start!");
-    }
-  }
-  //Debug function, in case an invalid start byte is had.
-  if(vs==-1){
-    //Serial.println("Invalid message!");
-  }
-  //If we have received a valid serial packet...
-  if(vs==1){       
-    //Get the signature/command byte, which tells us what the rest of the data means.
-    byte csig;
-    csig = msg_dat[0];
-    //Multi-byte messages.
-    if(msg_len>1){
-
-      //Color update mode. This allows for predefined colors to be updated, so that separation mode can be previewed with different colors, without reuploading.
-      else if(csig==50){
-        //Get our relevant data.
-        byte cr,cg,cb,cn;
-        cr = msg_dat[1];
-        cg = msg_dat[2];
-        cb = msg_dat[3];
-        cn = msg_dat[4];
-        //Construct the selected color.
-        uint32_t nc=strip.Color(cr,cg,cb);
-        //Clamp the predefined color number to a valid value.
-        if(cn>col_tot){cn=col_tot;}
-        if(cn<0){cn=0;}
-        //Update the selected predefined color.
-        colors[cn]=nc;
-      }
-      
-      //Strip fill mode. This simply fills the entire strip with a single color.
-      else if(csig==44){
-        //Get our relevant data.
-        byte cr,cg,cb;
-        cr = msg_dat[1];
-        cg = msg_dat[2];
-        cb = msg_dat[3];
-        //Clearly, we aren't resuming a render. Also, this command is used for clearing the strip, in which case we're definitely not resuming the render.
-        ren_glx = 0;
-        //Fill the strip.
-        FillStrip(cr,cg,cb);
-      }
-      
-      //Separation mode mode! This runs separation mode, rendered exactly like it would be in a production scenario, with some serial parameters.
-      else if(csig==40){
-        //Get some relevant data.
-        byte ctl,cth,csm;
-        cth = msg_dat[1];
-        ctl = msg_dat[2];
-        csm = msg_dat[3];
-        Seri
-        alSepRenHandler(cth,ctl,csm);
-      }
-      //Update the enabled colors mask. This sets color x high or low depending on serial parameters.
-      else if(csig==30){
-        //Become enlightened with relevant data.
-        byte ccn,ccs;
-        ccn = msg_dat[1];
-        ccs = msg_dat[2];
-        //Make sure we got a valid command.
-        if(ccs==0 || ccs==1){
-          //If we're actually changing the color...
-          if(color_enable[ccn]!=ccs){
-            //Enable or disable the selected color.
-            color_enable[ccn]=ccs;
-            //Since we're changing colors, we won't be resuming a render.
-            ren_glx=0;
-          }
-        }
-      }
-      //Update the brightness, without using the remote.
-      else if(csig==21){
-        byte cbr;
-        //Get the selected brightness.
-        cbr = msg_dat[1];
-        //Update the global brightness.
-        ren_bri = cbr;
-        //Actually set the brightness.
-        strip.setBrightness(cbr);
-      }
-    }else if(msg_len==1){
-      //Separation Mode
-      if(csig==100){SerialSepRenHandler(0,sep_dly,sep_mod);}
-      else{SingleByteCommand(csig);}
-    }
-
-    //Push changes made by serial commands to the strip. Perhaps this should be moved into its own serial command, but for now, no.
-    strip.show();
-  }
+  if(mode_state==0){cmd_last=remote.listen(250);}//Get A Command
+  else{mode_state=2;}
+  if(cmd_last==26||cmd_last==7){InfraredSepRenHandler();}//run Separations mode
+  if(cmd_last==25){InfraredSolidHandler();}//do solid mode
+  if(cmd_last>0&&mode_state==0){mode_state=1;}
+  if(mode_state==2){mode_state=0;}
 }
 

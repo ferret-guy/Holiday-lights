@@ -1,6 +1,6 @@
 #include <Adafruit_NeoPixel.h>
 //The strip is always on pin 7. ALWAYS.
-#define PIN 7
+#define PIN 11
 
 //Serial Definitions
 #define STARTBIT          253
@@ -16,7 +16,7 @@
 //[NN] - Not Necessary. This feature is not for production and probably isn't production-ready. It's just for use in development and probably only works with the LED Control Utility.
 
 //Define our globals. Globals aren't traditionally the best, but it's an AVR with 2KB RAM.
-int       led_num         = 99;    //Total number of LEDs, zero-ordinated. Due to a less than healthy mix of zero- and one-ordination, the best solution is to confuse the other algorithms with an odd number.
+int       led_num         = 59;    //Total number of LEDs, zero-ordinated. Due to a less than healthy mix of zero- and one-ordination, the best solution is to confuse the other algorithms with an odd number.
 int       col_tot         = 11;    //Total colors defined. This will almost certainly be 11, but there's nothing wrong with a little open-endedness.
 int       col_len         = 0;     //The length of each color segment. This is calculated later.
 float     col_fln         = 0;     //The floating-point color length.
@@ -32,7 +32,7 @@ int       ren_bri         = 255;   //Global brightness multiplier. 255 is fullbr
 int       sep_mod         = 1;     //The current separation mode.
 int       sep_prv         = 1;     //The previous separation mode.
 int       sep_dly         = 100;   //The current animation frame delay.
-int       absolute_offset = 4;     //The number of pixels to skip when drawing. Only purpose is to skip the four NeoPixels indev. [NN]
+int       absolute_offset = 0;     //The number of pixels to skip when drawing. Only purpose is to skip the four NeoPixels indev. [NN]
 
 //Initialize our strip. There needs to be a way to clear this out, because when additional physical LED strips are added, the length can only be changed by redefining the strip.
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(led_num+absolute_offset+1, PIN, NEO_GRB + NEO_KHZ800);
