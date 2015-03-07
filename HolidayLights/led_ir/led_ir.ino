@@ -1,5 +1,9 @@
-#include <Adafruit_NECremote.h>
+#include "AdafruitNECIR.h"
 #include <Adafruit_NeoPixel.h>
+
+
+
+// ****************************************** Defines and Globals Go Here
 
 //Pin the strip is on.
 #define PIN 11
@@ -18,8 +22,13 @@
 #define SEPMODESIG        40
 #define KILLSEPBIT        31
 
+#define NUMMODES          6        //Number of modes, including off.
+#define NUMLENGTHS        3        //Number of preset lengths.
+#define MAXLEDS           300      //Specified maximum number of LEDS.
+
 //Define our globals.
-int       led_num         = 59;    //Total number of LEDs, zero-ordinated.
+int       led_num         = 45;    //Total number of LEDs, zero-ordinated.
+int       cur_len         = 0;     //The current length preset.
 int       col_tot         = 11;    //Total colors defined. This will almost certainly be 11, but there's nothing wrong with a little open-endedness.
 int       col_len         = 0;     //The length of each color segment. This is calculated later.
 float     col_fln         = 0;     //The floating-point color length.
@@ -27,17 +36,23 @@ int       col_seg         = 0;     //The length of each separation mode segment.
 int       col_num         = 0;     //The number of active/enabled colors. This is calculated later.
 int       col_rep         = 0;     //The number of times to draw the colors in color separation mode 2+.
 int       ren_stp         = 0;     //The number of iterations the rendering loop goes through before resetting. This is calculated later.
+int       ren_stp_b       = 256;   //Rainbow steps.
 int       ren_glx         = 0;     //Useful for resuming color separation mode as opposed to restarting the animation.
+int       ren_glx_b       = 0;     //Useful for rainbows.
 int       ren_bri         = 255;   //Global brightness multiplier. 255 is fullbright, 0 is blackout.
 int       sep_mod         = 1;     //The current separation mode.
 int       sep_prv         = 1;     //The previous separation mode.
 int       sep_dly         = 100;   //The current animation frame delay.
 int       absolute_offset = 0;     //The number of pixels to skip when drawing. Artifact from an old devkit.
 int       cmd_last        = 0;     //The last IR code recieved.
-int       mode_state      = 0;     //Used to assist in switching modes.
+int       cmd_prev        = 0;     //The one before that.
+int       mode_state      = 0;     //The current mode.
+int       mode_last       = 1;     //The mode before we turned off. Also lets us turn on to sepmod.
+int       ani_dir         = 0;     //Direction of animation progression, 0 is forward, 1 is reverse.
+int       efc_col         = 3;     //Current color for Twinkle and Blink
 
 //Initialize our strip. There needs to be a way to clear this out, because when additional physical LED strips are added, the length can only be changed by redefining the strip.
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(led_num+absolute_offset+1, PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(MAXLEDS+absolute_offset+1, PIN, NEO_GRB + NEO_KHZ800);
 //Initialize our IR sensor.
 Adafruit_NECremote remote(IRpin);
 
@@ -73,17 +88,46 @@ uint32_t colors[] = {
   strip.Color(255,200,25)    //Amber
 };
 
-void colenable(int index){
-  if(col_num>2){
-    if (color_enable[index]==1){
-      color_enable[index]=0;
-    }else{
-      color_enable[index]=1;
-    }
-    ren_glx = 0;
-  }else{color_enable[index]=1;}
-}
+//Alternatively, for twinkle...
+int colorparts[11][3] = {
+  {255,0,0},
+  {0,255,0},
+  {0,0,255},
+  {255,255,255},
+  {255,100,0},
+  {255,255,0},
+  {128,0,128},
+  {255,178,48},
+  {175,238,238},
+  {255,0,128},
+  {255,200,25}
+};
 
+//Predefined, switchable strip lengths.
+int lengths[] = {
+  45,
+  144,
+  189
+};
+
+//MODE TABLE - Important stuff.
+void (*modes[])() = {
+  *ModeOffHndlr,
+  *ModeSepModHndlr,
+  *ModeSolidHndlr,
+  *ModeRainbowHndlr,
+  *ModeBlinkHndlr,
+  *ModeTwinkleHndlr
+};
+  
+
+// ****************************************** General Purpose Functions Go Here
+
+//Literally Nothing
+void dust(){}
+
+//Nothing For Your Something
+void dust2(int cs_s){}
 
 //Calculate the length of each color segment based on the length of the strip and the separation mode. (This is col_len.)
 int CalcCL(int spm){
@@ -131,6 +175,58 @@ void initStrips(boolean cle[],int spm){
   strip.setBrightness(ren_bri);
   strip.show();
 }
+
+//Fill the strip with a color.
+void FillStrip(int cr, int cg, int cb){
+  //Construct the selected color.
+  uint32_t nc=strip.Color(cr,cg,cb);
+  //Step through each pixel and set it to the selected color.
+    for(int i=0;i<=led_num;i++){
+      strip.setPixelColor(i+absolute_offset,nc);
+  }
+}
+
+//Fill the strip with a predefined color.
+void FillStripC(uint32_t nc){
+  //Step through each pixel and set it to the selected color.
+    for(int i=0;i<=led_num;i++){
+      strip.setPixelColor(i+absolute_offset,nc);
+  }
+}
+
+//Adafruit colorwheel function... no need to reinvent the wheel.
+uint32_t Wheel(byte WheelPos) {
+  WheelPos = 255 - WheelPos;
+  if(WheelPos < 85) {
+   return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  } else if(WheelPos < 170) {
+    WheelPos -= 85;
+   return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  } else {
+   WheelPos -= 170;
+   return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+  }
+}
+
+//Increment or decrement a variable to progress animation.
+int progressAnimation(int input){
+  int output;
+  //Serial.println("got called");
+  //Serial.println(input);
+  if(ani_dir==1){
+    //Serial.println("minus minus");
+    output = input-1;
+  }else{
+    //Serial.println("plus plus");
+    output = input+1;
+  }
+  //Serial.println(output);
+  return output;
+}
+
+
+
+// ****************************************** Renderers Go Here
 
 //The separation mode renderer!
 void RenderSPM(int offset){
@@ -198,112 +294,6 @@ void RenderSPM(int offset){
   strip.show();
 }
 
-//Fill the strip with a color.
-void FillStrip(int cr, int cg, int cb){
-  //Construct the selected color.
-  uint32_t nc=strip.Color(cr,cg,cb);
-  //Step through each pixel and set it to the selected color.
-    for(int i=0;i<=led_num;i++){
-      strip.setPixelColor(i+absolute_offset,nc);
-  }
-}
-
-//Fill the strip with a predefined color.
-void FillStripC(uint32_t nc){
-  //Step through each pixel and set it to the selected color.
-    for(int i=0;i<=led_num;i++){
-      strip.setPixelColor(i+absolute_offset,nc);
-  }
-}
-
-//Single byte command processor. This is split out so that we can take commands during separation mode with ease.
-int SingleByteCommand(int csig){
-  int gret=0;
-  
-  //Red
-  if(csig==9){colenable(0);}
-  
-  //Green
-  else if(csig==8){colenable(1);}
-  
-  //Blue
-  else if(csig==10){colenable(2);}
-  
-  //White
-  else if(csig==11){colenable(3);}
-  
-  //Orange
-  else if(csig==13){colenable(4);}
-  
-  //Yellow
-  else if(csig==12){colenable(5);}
-  
-  //Purple
-  else if(csig==14){colenable(6);}
-  
-  //Warm White
-  else if(csig==15){colenable(7);}
-  
-  //Turquoise
-  else if(csig==20){colenable(8);}
-  
-  //Magenta
-  else if(csig==22){colenable(9);}
-  
-  //Amber
-  else if(csig==21){colenable(10);}
-  
-  //Speed Down
-  else if(csig==27){sep_dly+=15;if(sep_dly>250){sep_dly=250;}gret=1;}
-  
-  //Speed Up
-  else if(csig==23){sep_dly-=15;if(sep_dly<10){sep_dly=10;}gret=1;}
-  
-  //Brightness Down
-  else if(csig==4){ren_bri-=15;if(ren_bri<15){ren_bri=15;}gret=1;strip.setBrightness(ren_bri);}
-  
-  //Brightness Up
-  else if(csig==5){ren_bri+=15;if(ren_bri>255){ren_bri=255;}gret=1;strip.setBrightness(ren_bri);}
-  
-  //Incrment Color sepration mode
-  else if(csig==24){
-    if (sep_mod == 3){sep_mod = 0;}
-    else {sep_mod++;}
-    ren_glx = 0;
-  }
-  
-  //Someone held down the button, and we haven't implemented that yet.
-  else if(csig==-3){gret=1;}
-  
-  return gret;
-}
-
-int SingleColorCommand(int csig){
-  //Red
-  if(csig==9){FillStripC(colors[0]);}
-  //Green
-  else if(csig==8){FillStripC(colors[1]);}
-  //Blue
-  else if(csig==10){FillStripC(colors[2]);}
-  //White
-  else if(csig==11){FillStripC(colors[3]);}
-  //Orange
-  else if(csig==13){FillStripC(colors[4]);}    
-  //Yellow
-  else if(csig==12){FillStripC(colors[5]);}
-  //Purple
-  else if(csig==14){FillStripC(colors[6]);}
-  //Warm White
-  else if(csig==15){FillStripC(colors[7]);}
-  //Turquoise
-  else if(csig==20){FillStripC(colors[8]);}
-  //Magenta
-  else if(csig==22){FillStripC(colors[9]);}
-  //Amber
-  else if(csig==21){FillStripC(colors[10]);}
-
-}
-
 //Predraw all the pixels so separation mode doesn't fill over initial black.
 void SPMPreRender(int offs){
   for(int x=offs;x<col_len+offs;x++){
@@ -311,8 +301,277 @@ void SPMPreRender(int offs){
   }
 }
 
-//Run separation mode from IR.
-void InfraredSepRenHandler(){
+//Do a rainbow.
+void RenderRainbow(uint16_t j) {
+  uint16_t i;
+    for(i=0; i<strip.numPixels(); i++) {
+      strip.setPixelColor(i, Wheel((i+j) & 255));
+    }
+    strip.show();
+}
+
+//Twinkly.
+void RenderTwinkle(int index){
+  int n;
+  for(n=0;n<(led_num/4);n++){
+    float r = (float) colorparts[index][0];
+    //float r = 255;
+    float g = (float) colorparts[index][1];
+    //float g = 0;
+    float b = (float) colorparts[index][2];
+    //float b = 0;
+    float di = (float) random(100);
+    float d = (di/125)+0.2;
+    r = r*d;
+    g = g*d;
+    b = b*d;
+    int ri = (int) r;
+    int gi = (int) g;
+    int bi = (int) b;
+    uint32_t color = strip.Color(ri,gi,bi);
+    strip.setPixelColor(random(led_num),color);
+  }
+  strip.show();
+}
+    
+
+
+// ****************************************** Button Handlers Go Here (Real IDE Goes Here)
+
+//Handle mode button in sepmod
+void SepModModeHndlr(){
+  if (sep_mod == 3){sep_mod = 0;}
+  else {sep_mod++;}
+  ren_glx = 0;
+}
+
+void colenable(int index){
+  if(col_num>2){
+    if (color_enable[index]==1){
+      color_enable[index]=0;
+    }else{
+      color_enable[index]=1;
+    }
+    ren_glx = 0;
+  }else{color_enable[index]=1;}
+}
+
+void BlinkTwinkleColorHndlr(int index){
+  efc_col=index;
+}
+
+void SolidColorHndlr(int index){
+  FillStripC(colors[index]);
+}
+
+void SolidModeHndlr(){
+  cur_len++;
+  if(cur_len==NUMLENGTHS){cur_len=0;}
+  led_num=lengths[cur_len];
+  initStrips(color_enable,sep_mod);
+}
+
+
+
+// ****************************************** Top-Level Handlers Go Here
+
+//Single byte command processor. This is split out so that we can take commands during ANY MODE with ease. Handlers for mode-specific events are passed in.
+int SingleByteCommand(int csig, void (*colHndlr)(int), void (*modHndlr)(), bool volatileColors){
+  int gret=0;
+  
+  //colHndlr is called when any color button is pressed, parameter passed is color number as per array up top.
+  //modHndlr is called when mode button is pressed, no paramter is passed.
+  
+  switch(csig){
+    //DO COLORS
+    //Red
+    case 9:
+      colHndlr(0);
+      if(!volatileColors){gret=1;}
+      break;
+      
+    //Green
+    case 8:
+      colHndlr(1);
+      if(!volatileColors){gret=1;}
+      break;
+    
+    //Blue
+    case 10:
+      colHndlr(2);
+      if(!volatileColors){gret=1;}
+      break;
+  
+    //White
+    case 11: 
+      colHndlr(3);
+      if(!volatileColors){gret=1;}
+      break;
+    
+    //Orange
+    case 13:
+      colHndlr(4);
+      if(!volatileColors){gret=1;}
+      break;
+    
+    //Yellow
+    case 12:
+      colHndlr(5);
+      if(!volatileColors){gret=1;}
+      break;
+    
+    //Purple
+    case 14:
+      colHndlr(6);
+      if(!volatileColors){gret=1;}
+      break;
+    
+    //Warm White
+    case 15:
+      colHndlr(7);
+      if(!volatileColors){gret=1;}
+      break;
+    
+    //Turquoise
+    case 20:
+      colHndlr(8);
+      if(!volatileColors){gret=1;}
+      break;
+    
+    //Magenta
+    case 22:
+      colHndlr(9);
+      if(!volatileColors){gret=1;}
+      break;
+    
+    //Amber
+    case 21:
+      colHndlr(10);
+      if(!volatileColors){gret=1;}
+      break;
+    
+    //DO ADJUSTMENTS
+    //Speed Down
+    case 27:
+      sep_dly+=15;
+      if(sep_dly>250){
+        sep_dly=250;
+      }
+      gret=1;
+      break;
+    
+    //Speed Up
+    case 23:
+      sep_dly-=15;
+      if(sep_dly<25){
+        sep_dly=25;
+      }
+      gret=1;
+      break;
+    
+    //Brightness Down
+    case 4:
+      ren_bri-=15;
+      if(ren_bri<15){
+        ren_bri=15;
+      }
+      gret=1;
+      strip.setBrightness(ren_bri);
+      break;
+    
+    //Brightness Up
+    case 5:
+      ren_bri+=15;
+      if(ren_bri>255){
+        ren_bri=255;
+      }
+      gret=1;
+      strip.setBrightness(ren_bri);
+      break;
+    
+    //DO THESE MISCELLANEOUS STUFF
+    //Mode Button Handler
+    case 24:
+      modHndlr();
+      break;
+    
+    //Someone held down the button, and we haven't implemented that yet.
+    case -3:
+      gret=1;
+      break;
+    
+    //Reverse the animation progression.
+    case 19:
+      if(ani_dir==1){
+        ani_dir=0; //forward
+      }else{
+        ani_dir=1; //reverse
+      }
+      gret=1;
+      break;
+    
+    //DO MODES
+    //Turn On
+    case 7:
+      if(mode_state!=0){gret=1;}
+      if(mode_last==0){mode_last=1;}
+      mode_state=mode_last;
+      break;
+    
+    //Off Mode
+    case 6:
+      if(mode_state!=0){
+        mode_last=mode_state;
+      }
+      mode_state=0;
+      break;
+    
+    //Separation Mode
+    case 26:
+      mode_state=1;
+      break;
+    
+    //Solid Mode
+    case 25:
+      mode_state=2;
+      break;
+    
+    //Rainbow Mode
+    case 17:
+      mode_state=3;
+      break;
+    
+    //Blink Mode
+    case 16:
+      mode_state=4;
+      break;
+    
+    //Twinkle Mode
+    case 18:
+      mode_state=5;
+      break;
+      
+    default:
+      gret=1;
+      break;
+    
+  }  
+  return gret;
+}
+
+//Accept commands and be blank.
+void ModeOffHndlr(){
+  FillStrip(0,0,0);
+  strip.show();
+  while(1==1){
+    cmd_last=remote.listen(250);
+    int cret=SingleByteCommand(cmd_last,*dust2,*dust,false);
+    if(cret==0){break;}
+  }
+}
+
+//Run separation mode.
+void ModeSepModHndlr(){
   //Re-intialize the strip with the selected parameters.
   initStrips(color_enable,sep_mod);
   //Initialize our breaking var.
@@ -329,45 +588,135 @@ void InfraredSepRenHandler(){
   //Keep going until told to stop.
   while(i==1){
     //Run through the calculated number of rendering steps. Start where we stopped.
-    for(int x=ren_glx;x<ren_stp;x++){
+    //for(int x=ren_glx;x<ren_stp;progressAnimation(x)){
+      //Serial.println("start");
+      //Serial.println(ren_glx);
+      int x = ren_glx;
       //Render it!
       RenderSPM(x);
+      
+      x = progressAnimation(x);
       //Keep track of where we are so that we can pause and resume.
       ren_glx=x;
       //Delay the animation by the selected amount, and get an IR command. Two stones with one bird.
       cmd_last = remote.listen(sep_dly);
-      
+      //Serial.println("progresses");
+      //Serial.println(ren_glx);
       int cret = 1;
-      if(cmd_last>0){cret=SingleByteCommand(cmd_last);}//Run the IR command.
-      Serial.println(cret);
-      if(cmd_last==6||cmd_last==25){i=0;FillStrip(0,0,0);strip.show();break;}//If the command is right, break from the sepmod loop.
+      if(cmd_last>0){cret=SingleByteCommand(cmd_last,*colenable,*SepModModeHndlr,true);}//Run the IR command.
+      //Serial.println(cret);
+      //if(cmd_last==6||cmd_last==25){i=0;FillStrip(0,0,0);strip.show();break;}//If the command is right, break from the sepmod loop.
       if(cret==0){initStrips(color_enable,sep_mod);ren_glx=col_len;SPMPreRender(0);break;}//Reset and restart sepmod for necessary changes
       cmd_last = 0;//Make sure we don't re-run commands.
-    }
+    //}
     //If we've made a full render, go back to rendering step zero.
-    if(ren_glx==(ren_stp-1)){
-      ren_glx=0;
+    if(ani_dir==1){
+      if(ren_glx==0){
+        ren_glx=(ren_stp-1);
+      }
+    }else{
+      if(ren_glx==(ren_stp-1)){
+        ren_glx=0;
+      }
     }
   }
 }
 
-//Does solid colors
-void InfraredSolidHandler(){
+//Does solid colors.
+void ModeSolidHndlr(){
   initStrips(color_enable,sep_mod);
   int i=1;
   FillStrip(255,255,255);
   while(i==1){
     cmd_last=remote.listen(250);
-    SingleColorCommand(cmd_last);
+    int cret = SingleByteCommand(cmd_last,*SolidColorHndlr,*SolidModeHndlr,false);
     strip.show();
-    if(cmd_last==6||cmd_last==26){break;}
+    if(cret==0){i=0;break;}
+    cmd_prev=cmd_last;
   }
-  FillStrip(0,0,0);
-  strip.show();
+  //FillStrip(0,0,0);
+  //strip.show();
 }
-  
 
-//This runs first, setting up the necessary things. Since this is the PC-control setup, there isn't much, and most everything is condensed into initStrips.
+//Make it rainbow.
+void ModeRainbowHndlr(){
+  //Re-intialize the strip with the selected parameters.
+  initStrips(color_enable,sep_mod);
+  //Initialize our breaking var.
+  int i=1;
+
+  //Keep going until told to stop.
+  while(i==1){
+      int x = ren_glx_b;
+      //Render it!
+      RenderRainbow(x);
+      x = progressAnimation(x);
+      //Keep track of where we are so that we can pause and resume.
+      ren_glx_b=x;
+      //Delay the animation by the selected amount, and get an IR command. Two stones with one bird.
+      cmd_last = remote.listen(sep_dly);
+      int cret = 1;
+      if(cmd_last>0){cret=SingleByteCommand(cmd_last,*dust2,*dust,false);}//Run the IR command.
+      if(cret==0){break;}//Reset and restart sepmod for necessary changes
+      cmd_last = 0;//Make sure we don't re-run commands.
+    //If we've made a full render, go back to rendering step zero.
+    if(ani_dir==1){
+      if(ren_glx==0){
+        ren_glx=(ren_stp_b-1);
+      }
+    }else{
+      if(ren_glx==(ren_stp_b-1)){
+        ren_glx=0;
+      }
+    }
+  }
+}
+
+void ModeBlinkHndlr(){
+  //Re-intialize the strip with the selected parameters.
+  initStrips(color_enable,sep_mod);
+  //Initialize our breaking var.
+  int it=1;
+
+  //Keep going until told to stop.
+  while(it==1){
+    for (int q=0; q < 2; q++) {
+      for (int i=0; i < strip.numPixels(); i=i+2) {
+        strip.setPixelColor(i+q, colors[efc_col]);
+      }
+      strip.show();
+      //Delay the animation by the selected amount, and get an IR command. Two stones with one bird.
+      cmd_last = remote.listen(sep_dly);
+      int cret = 1;
+      if(cmd_last>0){cret=SingleByteCommand(cmd_last,*BlinkTwinkleColorHndlr,*dust,false);}//Run the IR command.
+      if(cret==0){it=0;break;}//Reset and restart sepmod for necessary changes
+      cmd_last = 0;//Make sure we don't re-run commands.
+      for (int i=0; i < strip.numPixels(); i=i+2) {
+        strip.setPixelColor(i+q, 0);
+      }
+    }
+  }
+}
+
+//Twinkle like stars.
+void ModeTwinkleHndlr(){
+  //Re-intialize the strip with the selected parameters.
+  initStrips(color_enable,sep_mod);
+  //Initialize our breaking var.
+  int i=1;
+
+  //Keep going until told to stop.
+  while(1==1){
+      RenderTwinkle(efc_col);
+      cmd_last = remote.listen(sep_dly);
+      int cret = 1;
+      if(cmd_last>0){cret=SingleByteCommand(cmd_last,*BlinkTwinkleColorHndlr,*dust,false);}//Run the IR command.
+      if(cret==0){break;}//Reset and restart sepmod for necessary changes
+      cmd_last = 0;//Make sure we don't re-run commands.
+  }
+}
+
+//This runs first, setting up the necessary things.
 void setup(void) {
   //Do everything relevant to the LEDs.
   initStrips(color_enable,sep_mod);
@@ -377,11 +726,6 @@ void setup(void) {
 
 //The main chunk of the program.
 void loop(void) {
-  if(mode_state==0){cmd_last=remote.listen(250);}//Get A Command
-  else{mode_state=2;}
-  if(cmd_last==26||cmd_last==7){InfraredSepRenHandler();}//run Separations mode
-  if(cmd_last==25){InfraredSolidHandler();}//do solid mode
-  if(cmd_last>0&&mode_state==0){mode_state=1;}
-  if(mode_state==2){mode_state=0;}
+  (*modes[mode_state])(); // Exciting, right?
 }
 
