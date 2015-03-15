@@ -6,9 +6,9 @@
 // ****************************************** Defines and Globals Go Here
 
 //Pin the strip is on.
-#define PIN 11
+#define PIN 7
 //Pin the IR Sensor is on.
-#define IRpin 2
+#define IRpin 3
 
 //Serial Definitions
 #define STARTBIT          253
@@ -26,9 +26,14 @@
 #define NUMLENGTHS        3        //Number of preset lengths.
 #define MAXLEDS           300      //Specified maximum number of LEDS.
 
+#define MINCOLORS         1        //The minimum number of colors allowed in separation mode. i.e. the user can turn off colors until they have this many.
+#define MAXSPEED          20       //Maximum animation speed in milliseconds.
+#define MINSPEED          250      //Minimum animation speed in milliseconds. Below this speed stops moving.
+#define SPEEDSTEP         15       //The time by which speed in adjusted in milliseconds.
+
 //Define our globals.
-int       led_num         = 45;    //Total number of LEDs, zero-ordinated.
-int       cur_len         = 0;     //The current length preset.
+int       led_num         = 144;    //Total number of LEDs, zero-ordinated.
+int       cur_len         = 1;     //The current length preset.
 int       col_tot         = 11;    //Total colors defined. This will almost certainly be 11, but there's nothing wrong with a little open-endedness.
 int       col_len         = 0;     //The length of each color segment. This is calculated later.
 float     col_fln         = 0;     //The floating-point color length.
@@ -42,13 +47,14 @@ int       ren_glx_b       = 0;     //Useful for rainbows.
 int       ren_bri         = 255;   //Global brightness multiplier. 255 is fullbright, 0 is blackout.
 int       sep_mod         = 1;     //The current separation mode.
 int       sep_prv         = 1;     //The previous separation mode.
-int       sep_dly         = 100;   //The current animation frame delay.
+int       sep_dly         = 265;   //The current animation frame delay.
 int       absolute_offset = 0;     //The number of pixels to skip when drawing. Artifact from an old devkit.
 int       cmd_last        = 0;     //The last IR code recieved.
 int       cmd_prev        = 0;     //The one before that.
 int       mode_state      = 0;     //The current mode.
-int       mode_last       = 1;     //The mode before we turned off. Also lets us turn on to sepmod.
+int       mode_last       = 2;     //The mode before we turned off. Also lets us turn on to solid mode, apparently.
 int       ani_dir         = 0;     //Direction of animation progression, 0 is forward, 1 is reverse.
+int       ani_go          = 0;     //Should the animation be going?
 int       efc_col         = 3;     //Current color for Twinkle and Blink
 
 //Initialize our strip. There needs to be a way to clear this out, because when additional physical LED strips are added, the length can only be changed by redefining the strip.
@@ -70,9 +76,7 @@ Adafruit_NECremote remote(IRpin);
 //10. Amber
 
 //Mask of enabled colors.
-boolean color_enable[] = {1,1,1,1,1,1,1,1,1,1,1};
-//Offset of each color in color separation mode, and possibly other modes.
-int     color_offset[] = {0,1,1,2,2,3,3,4,4,5,5};
+boolean color_enable[] = {0,0,0,1,0,0,0,0,0,0,0};
 //The color definitions themselves.
 uint32_t colors[] = {
   strip.Color(255,0,0),      //Red
@@ -213,12 +217,16 @@ int progressAnimation(int input){
   int output;
   //Serial.println("got called");
   //Serial.println(input);
-  if(ani_dir==1){
-    //Serial.println("minus minus");
-    output = input-1;
+  if(ani_go==1){
+    if(ani_dir==1){
+      //Serial.println("minus minus");
+      output = input-1;
+    }else{
+      //Serial.println("plus plus");
+      output = input+1;
+    }
   }else{
-    //Serial.println("plus plus");
-    output = input+1;
+    output=input;
   }
   //Serial.println(output);
   return output;
@@ -234,8 +242,8 @@ void RenderSPM(int offset){
   int rend_step = 1; //NOT TO BE CONFUSED WITH ren_stp.
   int col_step = 0;
   int spm_step = -1;
-  //Make sure we have a nonzero number of colors
-  if(col_num>0){
+  //Make sure we have a workable number of colors
+  if(col_num>1){
     //If separation mode is 1 or higher...
     if(sep_mod>0){
       //This while loop increments spm_step to draw multiple instances of the separation for modes 2 and up.
@@ -247,7 +255,7 @@ void RenderSPM(int offset){
           //If the color is enabled, render it.
           if(color_enable[col_step]){
             //Calculate what pixel we should be drawing to.                 \/ This is where we move over a lot for separation mode 2+.
-            int pixnum=(rend_step*(col_len))+offset+0*color_offset[col_step]+(col_seg*spm_step);
+            int pixnum=(rend_step*(col_len))+offset+(col_seg*spm_step);
             //Don't draw to pixels lower than the absolute offset.
             if(pixnum<0){
               pixnum=-absolute_offset-1;
@@ -270,28 +278,40 @@ void RenderSPM(int offset){
       int led_rpt=led_num/col_num;
       //Initialize a thing.
       int pixnum=0;
+      int stepnum=0;
       //Step through the colors.
       while(col_step<col_tot){
         //If a color is enabled, draw it.
         if(color_enable[col_step]){
           //Repeat it however many times with the offset increased by the total colors.
           for(int i=0;i<led_num;i+=col_num){
-            pixnum = col_step+i+offset;
-            if(pixnum>led_num){pixnum-=led_num;}
-              //Actually draw the pixel.
-              strip.setPixelColor(pixnum+absolute_offset,colors[col_step]);
+            pixnum = stepnum+i+offset;
+            if(pixnum>=led_num){pixnum-=led_num;}
+            //Actually draw the pixel.
+            strip.setPixelColor(pixnum+absolute_offset,colors[col_step]);
           }
+          stepnum++;
         }
         //Go to the next color.
         col_step++;
       }
     }
+  //If there is only one color enabled, it is a solid mode.
+  }else if(col_num==1){
+    //Look until we find the enabled color.
+    while(col_step<col_tot){
+      if(color_enable[col_step]){
+        FillStripC(colors[col_step]);
+      }
+      //Go to the next color.
+      col_step++;
+    }
   //If there are no colors enabled, draw black, so as to not break everything.
   }else{
     FillStrip(0,0,0);
   }
-  //Actually send all these changes to the strip. We do this last for due to major opimization issues, as well as to avoid visually staggered rendering.
-  strip.show();
+  //Actually send all these changes to the strip. We do this SOMEWHERE ELSE for due to major opimization issues, as well as to avoid visually staggered rendering.
+  //strip.show();
 }
 
 //Predraw all the pixels so separation mode doesn't fill over initial black.
@@ -299,6 +319,7 @@ void SPMPreRender(int offs){
   for(int x=offs;x<col_len+offs;x++){
     RenderSPM(x);
   }
+  strip.show();
 }
 
 //Do a rainbow.
@@ -336,7 +357,7 @@ void RenderTwinkle(int index){
     
 
 
-// ****************************************** Button Handlers Go Here (Real IDE Goes Here)
+// ****************************************** Button Handlers Go Here
 
 //Handle mode button in sepmod
 void SepModModeHndlr(){
@@ -346,7 +367,7 @@ void SepModModeHndlr(){
 }
 
 void colenable(int index){
-  if(col_num>2){
+  if(col_num>MINCOLORS){
     if (color_enable[index]==1){
       color_enable[index]=0;
     }else{
@@ -453,19 +474,21 @@ int SingleByteCommand(int csig, void (*colHndlr)(int), void (*modHndlr)(), bool 
     //DO ADJUSTMENTS
     //Speed Down
     case 27:
-      sep_dly+=15;
-      if(sep_dly>250){
-        sep_dly=250;
+      sep_dly+=SPEEDSTEP;
+      if(sep_dly>MINSPEED){
+        sep_dly=MINSPEED+SPEEDSTEP;
       }
+      if(sep_dly>MINSPEED){ani_go=0;}
       gret=1;
       break;
     
     //Speed Up
     case 23:
-      sep_dly-=15;
-      if(sep_dly<25){
-        sep_dly=25;
+      sep_dly-=SPEEDSTEP;
+      if(sep_dly<MAXSPEED){
+        sep_dly=MAXSPEED;
       }
+      if(sep_dly<=MINSPEED){ani_go=1;}
       gret=1;
       break;
     
@@ -594,8 +617,9 @@ void ModeSepModHndlr(){
       int x = ren_glx;
       //Render it!
       RenderSPM(x);
-      
+      strip.show();
       x = progressAnimation(x);
+      
       //Keep track of where we are so that we can pause and resume.
       ren_glx=x;
       //Delay the animation by the selected amount, and get an IR command. Two stones with one bird.
@@ -612,10 +636,10 @@ void ModeSepModHndlr(){
     //If we've made a full render, go back to rendering step zero.
     if(ani_dir==1){
       if(ren_glx==0){
-        ren_glx=(ren_stp-1);
+        ren_glx=(ren_stp);
       }
     }else{
-      if(ren_glx==(ren_stp-1)){
+      if(ren_glx==(ren_stp)){
         ren_glx=0;
       }
     }
